@@ -51,15 +51,29 @@ const canaisOptions = [
   "Outros",
 ]
 
+const campanhasPagasOptions = [
+  "Meta Ads (Anúncios Profissionais no Gerenciador do Facebook/Instagram)",
+  "Google Ads (Anúncios na rede de pesquisa)",
+  "Turbinar publicações direto no Instagram / Facebook",
+  "Turbinar diretamente no WhatsApp",
+  "Pego lista de contatos/leads para ligar um a um ou mandar WhatsApp",
+  "Não faço nenhum tipo de campanha paga",
+]
+
 export default function ProspectForms() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showSuccessDialog, setShowSuccessDialog] = useState(false)
   const [canaisAquisicao, setCanaisAquisicao] = useState<string[]>([])
+  const [campanhasPagas, setCampanhasPagas] = useState<string[]>([])
   const [processoIntegrado, setProcessoIntegrado] = useState("")
   const [possuiCRM, setPossuiCRM] = useState("")
 
   const toggleCanal = (value: string, checked: boolean) => {
     setCanaisAquisicao((current) => checked ? [...current, value] : current.filter((item) => item !== value))
+  }
+
+  const toggleCampanhaPaga = (value: string, checked: boolean) => {
+    setCampanhasPagas((current) => checked ? [...current, value] : current.filter((item) => item !== value))
   }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -70,10 +84,16 @@ export default function ProspectForms() {
       return
     }
 
+    if (campanhasPagas.length === 0) {
+      alert("Selecione pelo menos uma opção de campanha paga.")
+      return
+    }
+
     setIsSubmitting(true)
     const formData = new FormData(e.currentTarget)
     const data = Object.fromEntries(formData.entries()) as Record<string, FormDataEntryValue | string[]>
     data.canaisAquisicao = canaisAquisicao
+    data.campanhasPagas = campanhasPagas
 
     try {
       const response = await fetch("https://eazytech-n8n.gsl3ku.easypanel.host/webhook/cc42a81b-dde0-4c76-8147-6545ab18c8e1", {
@@ -213,6 +233,16 @@ export default function ProspectForms() {
                     </RadioGroup>
                   </div>
                   {possuiCRM === "Sim" && <ShortField id="qualCRM" label="Qual CRM vocês utilizam?" example="Ex: Pipedrive, HubSpot, RD CRM, Moskit." />}
+                  <div className="space-y-3">
+                    <h3 className="text-lg font-semibold text-white">5.3. Campanhas Pagas</h3>
+                    <Label className="text-white">Você faz algum tipo de campanha paga de aquisição? Se sim, quais? (Selecione as opções) *</Label>
+                    {campanhasPagasOptions.map((option) => (
+                      <div key={option} className="flex items-center gap-2">
+                        <Checkbox id={`campanha-${option}`} checked={campanhasPagas.includes(option)} onCheckedChange={(checked) => toggleCampanhaPaga(option, checked === true)} className="border-gray-400 data-[state=checked]:bg-yellow-500 data-[state=checked]:text-slate-900" />
+                        <Label htmlFor={`campanha-${option}`} className="cursor-pointer text-white">{option}</Label>
+                      </div>
+                    ))}
+                  </div>
                 </section>
 
                 <section className="space-y-6 rounded-lg bg-slate-700 p-6">
