@@ -329,7 +329,7 @@ export default function DiagnosticoContabilidade() {
                       <Label htmlFor="numeroColaboradores" className="text-gray-300">
                         Número Total de Colaboradores:
                       </Label>
-                      <p className="text-sm text-gray-400">Ex: 12 no total, sendo 2 no comercial</p>
+                      <p className="text-sm text-gray-400">Ex: 12 no total</p>
                       <Input
                         id="numeroColaboradores"
                         value={formData.numeroColaboradores}
