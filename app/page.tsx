@@ -4,112 +4,97 @@ import type React from "react"
 
 import { useState } from "react"
 import Image from "next/image"
-import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Checkbox } from "@/components/ui/checkbox"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { CheckCircle2 } from "lucide-react"
 
+type FieldProps = {
+  id: string
+  label: string
+  example?: string
+  required?: boolean
+  type?: React.HTMLInputTypeAttribute
+}
+
+function ShortField({ id, label, example, required = true, type = "text" }: FieldProps) {
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={id} className="text-white">{label}{required && " *"}</Label>
+      {example && <p className="text-sm italic text-gray-400">{example}</p>}
+      <Input id={id} name={id} type={type} required={required} autoComplete="off" className="bg-slate-600 border-slate-500 text-white" />
+    </div>
+  )
+}
+
+function LongField({ id, label, example }: Omit<FieldProps, "required" | "type">) {
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={id} className="text-white">{label} *</Label>
+      {example && <p className="text-sm italic text-gray-400">{example}</p>}
+      <Textarea id={id} name={id} required rows={4} className="bg-slate-600 border-slate-500 text-white" />
+    </div>
+  )
+}
+
+const canaisOptions = [
+  "Indicação",
+  "Redes Sociais (Instagram, LinkedIn, etc.)",
+  "Pesquisa no Google / Site",
+  "Prospecção Ativa (Ligar a frio, Abordagem direta no WhatsApp, etc.)",
+  "Eventos e Feiras",
+  "Outros",
+]
+
 export default function ProspectForms() {
-  const [isSubmittingDiretoria, setIsSubmittingDiretoria] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [showSuccessDialog, setShowSuccessDialog] = useState(false)
+  const [canaisAquisicao, setCanaisAquisicao] = useState<string[]>([])
+  const [processoIntegrado, setProcessoIntegrado] = useState("")
+  const [possuiCRM, setPossuiCRM] = useState("")
 
-  const handleDiretoriaSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const toggleCanal = (value: string, checked: boolean) => {
+    setCanaisAquisicao((current) => checked ? [...current, value] : current.filter((item) => item !== value))
+  }
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    setIsSubmittingDiretoria(true)
 
-    const formData = new FormData(e.currentTarget)
-
-    const data = {
-      data: formData.get("data"),
-      nomeContatoprincipal: formData.get("nomeContatoprincipal"),
-      cliente: formData.get("cliente"),
-      telefoneContato: formData.get("telefoneContato"),
-      cnpj: formData.get("cnpj"),
-      enderecoEmpresa: formData.get("enderecoEmpresa"),
-      redesSociais: formData.get("redesSociais"),
-      areaAtuacao: formData.get("areaAtuacao"),
-      faturamentoAnual: formData.get("faturamentoAnual"),
-      numeroFuncionarios: formData.get("numeroFuncionarios"),
-      numeroFuncionariosComercial: formData.get("numeroFuncionariosComercial"),
-      quantidadeClientesAtivos: formData.get("quantidadeClientesAtivos"),
-      website: formData.get("website"),
-
-      // Seção 1: Visão Estratégica e Objetivos
-      marcosMoldaram: formData.get("marcosMoldaram"),
-      proposito: formData.get("proposito"),
-      objetivosComerciais: formData.get("objetivosComerciais"),
-      sonhoFuturo: formData.get("sonhoFuturo"),
-      principalDesafio: formData.get("principalDesafio"),
-
-      // Seção 2: Mercado e Posicionamento
-      perfilClienteIdeal: formData.get("perfilClienteIdeal"),
-      principaisConcorrentes: formData.get("principaisConcorrentes"),
-      diferencialReal: formData.get("diferencialReal"),
-      tendenciasMercado: formData.get("tendenciasMercado"),
-      buscadosclientesideais: formData.get("buscadosclientesideais"),
-
-      // Seção 3: Processo de Aquisição e Venda
-      canaisAquisicao: formData.get("canaisAquisicao"),
-      jornadaCliente: formData.get("jornadaCliente"),
-      processoEstruturado: formData.get("processoEstruturado"),
-      monitoramentoSatisfacao: formData.get("monitoramentoSatisfacao"),
-      etapadepercepcao: formData.get("etapadepercepcao"),
-
-      // Seção 4: Equipe Comercial e Gestão
-      composicaoEquipe: formData.get("composicaoEquipe"),
-      kpisComerciais: formData.get("kpisComerciais"),
-      incentivosMotivacao: formData.get("incentivosMotivacao"),
-      buscaAprimoramento: formData.get("buscaAprimoramento"),
-
-      // Seção 5: Tecnologia e Ferramentas
-      possuiCRM: formData.get("possuiCRM"),
-      qualCRM: formData.get("qualCRM"),
-      outrasFerramentas: formData.get("outrasFerramentas"),
-      funcionalidadesouFerramentas: formData.get("funcionalidadesouFerramentas"),
-
-      // Seção 6: Desafios e Obstáculos
-      maiorGargalo: formData.get("maiorGargalo"),
-      testesRealizados: formData.get("testesRealizados"),
-      impactoDireto: formData.get("impactoDireto"),
+    if (canaisAquisicao.length === 0) {
+      alert("Selecione pelo menos um canal de aquisição.")
+      return
     }
 
-    try {
-      const response = await fetch(
-        "https://eazytech-n8n.gsl3ku.easypanel.host/webhook/cc42a81b-dde0-4c76-8147-6545ab18c8e1",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(data),
-        },
-      )
+    setIsSubmitting(true)
+    const formData = new FormData(e.currentTarget)
+    const data = Object.fromEntries(formData.entries()) as Record<string, FormDataEntryValue | string[]>
+    data.canaisAquisicao = canaisAquisicao
 
-      if (response.ok) {
-        setShowSuccessDialog(true)
-      } else {
-        throw new Error("Erro ao enviar")
-      }
-    } catch (error) {
+    try {
+      const response = await fetch("https://eazytech-n8n.gsl3ku.easypanel.host/webhook/cc42a81b-dde0-4c76-8147-6545ab18c8e1", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+
+      if (!response.ok) throw new Error("Erro ao enviar")
+      setShowSuccessDialog(true)
+    } catch {
       alert("Erro ao enviar o formulário. Tente novamente.")
     } finally {
-      setIsSubmittingDiretoria(false)
+      setIsSubmitting(false)
     }
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <header className="flex h-20 w-full items-center justify-between px-4 md:px-6">
-        <a
-          href="https://www.prospectvendas.com.br"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center"
-        >
+        <a href="https://www.prospectvendas.com.br" target="_blank" rel="noopener noreferrer" className="flex items-center">
           <Image src="/logo.webp" alt="Prospect Vendas" width={200} height={60} className="h-12 w-auto" />
         </a>
       </header>
@@ -117,653 +102,134 @@ export default function ProspectForms() {
       <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
         <DialogContent className="bg-slate-800 border-slate-700 text-white">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-3 text-2xl text-green-400">
-              <CheckCircle2 className="h-8 w-8" />
-              Formulário Enviado com Sucesso!
-            </DialogTitle>
-            <DialogDescription className="text-gray-300 text-lg pt-4">
-              Suas informações foram recebidas corretamente. Em breve nossa equipe entrará em contato para dar
-              continuidade ao processo.
-            </DialogDescription>
+            <DialogTitle className="flex items-center gap-3 text-2xl text-green-400"><CheckCircle2 className="h-8 w-8" />Formulário Enviado com Sucesso!</DialogTitle>
+            <DialogDescription className="pt-4 text-lg text-gray-300">Suas informações foram recebidas corretamente. Em breve nossa equipe entrará em contato para dar continuidade ao processo.</DialogDescription>
           </DialogHeader>
-          <div className="flex justify-end mt-4">
-            <Button
-              onClick={() => setShowSuccessDialog(false)}
-              className="bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-slate-900 font-bold"
-            >
-              Fechar
-            </Button>
+          <div className="mt-4 flex justify-end">
+            <Button onClick={() => setShowSuccessDialog(false)} className="bg-gradient-to-r from-yellow-500 to-yellow-600 font-bold text-slate-900 hover:from-yellow-600 hover:to-yellow-700">Fechar</Button>
           </div>
         </DialogContent>
       </Dialog>
 
       <main className="container mx-auto px-4 py-12">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl md:text-5xl font-bold text-white mb-6">Formulário de Avaliação</h1>
-          <p className="text-xl text-gray-300 max-w-3xl mx-auto">
-            Preencha o formulário abaixo para avaliarmos suas necessidades e identificarmos oportunidades de melhoria em
-            seu processo comercial.
-          </p>
+        <div className="mb-12 text-center">
+          <h1 className="mb-6 text-4xl font-bold text-white md:text-5xl">Formulário de Avaliação</h1>
+          <p className="mx-auto max-w-3xl text-xl text-gray-300">Preencha o formulário abaixo para avaliarmos suas necessidades e identificarmos oportunidades de melhoria em seu processo comercial.</p>
         </div>
 
-        <div className="max-w-4xl mx-auto">
-          <Card className="bg-slate-800 border-slate-700">
+        <div className="mx-auto max-w-4xl">
+          <Card className="border-slate-700 bg-slate-800">
             <CardHeader>
-              <CardTitle className="text-white text-2xl">
-                Briefing de Diagnóstico Comercial: Entrevista com a Diretoria
-              </CardTitle>
-              <CardDescription className="text-gray-300">
-                Avaliação estratégica e operacional da empresa
-              </CardDescription>
+              <CardTitle className="text-2xl text-white">Briefing de Diagnóstico Comercial: Entrevista com a Diretoria</CardTitle>
+              <CardDescription className="text-gray-300">Avaliação estratégica e operacional da empresa</CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleDiretoriaSubmit} className="space-y-8">
-                <div className="bg-slate-700 p-6 rounded-lg space-y-4">
-                  <h3 className="text-xl font-semibold text-yellow-400 mb-4">Informações Básicas</h3>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="data" className="text-white">
-                        Data *
-                      </Label>
-                      <Input
-                        id="data"
-                        name="data"
-                        type="date"
-                        required
-                        className="bg-slate-600 border-slate-500 text-white"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="nomeContatoprincipal" className="text-white">
-                        Nome do Contato principal (Cliente)*
-                      </Label>
-                      <Input
-                        id="nomeContatoprincipal"
-                        name="nomeContatoprincipal"
-                        required
-                        className="bg-slate-600 border-slate-500 text-white placeholder:text-gray-400"
-                        placeholder="Nome do Contato Principal"
-                      />
-                    </div>
+              <form onSubmit={handleSubmit} className="space-y-8" autoComplete="off">
+                <section className="space-y-4 rounded-lg bg-slate-700 p-6">
+                  <h2 className="mb-4 text-xl font-semibold text-yellow-400">Informações Básicas e Raio-X do Negócio</h2>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <ShortField id="nomeResponsavel" label="Nome do Responsável / Contato" />
+                    <ShortField id="nomeFantasia" label="Nome da Empresa (Nome Fantasia)" />
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="cliente" className="text-white">
-                      Nome da Empresa (Razão Social) *
-                    </Label>
-                    <Input
-                      id="cliente"
-                      name="cliente"
-                      required
-                      className="bg-slate-600 border-slate-500 text-white placeholder:text-gray-400"
-                      placeholder="Nome da empresa"
-                    />
+                  <ShortField id="razaoSocial" label="Razão Social" />
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <ShortField id="cnpj" label="CNPJ" />
+                    <ShortField id="telefoneContato" label="Telefone / WhatsApp do Contato Principal" type="tel" />
                   </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="telefoneContato" className="text-white">
-                        Telefone de contato *
-                      </Label>
-                      <Input
-                        id="telefoneContato"
-                        name="telefoneContato"
-                        type="tel"
-                        required
-                        className="bg-slate-600 border-slate-500 text-white placeholder:text-gray-400"
-                        placeholder="(11) 99999-9999"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="cnpj" className="text-white">
-                        CNPJ da empresa *
-                      </Label>
-                      <Input
-                        id="cnpj"
-                        name="cnpj"
-                        required
-                        className="bg-slate-600 border-slate-500 text-white placeholder:text-gray-400"
-                        placeholder="00.000.000/0000-00"
-                      />
-                    </div>
+                  <ShortField id="enderecoEmpresa" label="Endereço completo da Empresa" />
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <ShortField id="site" label="Link do Site (Se tiver)" required={false} />
+                    <ShortField id="linkedin" label="Link do LinkedIn (Se tiver)" required={false} />
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="enderecoEmpresa" className="text-white">
-                      Endereço da Empresa *
-                    </Label>
-                    <Input
-                      id="enderecoEmpresa"
-                      name="enderecoEmpresa"
-                      type="text"
-                      required
-                      className="bg-slate-600 border-slate-500 text-white placeholder:text-gray-400"
-                      placeholder="Ex: Rua Exemplo, 123 - Centro, Rio de Janeiro/RJ"
-                    />
+                  <ShortField id="instagram" label="Arroba do Instagram" example="Ex: @suaempresa" />
+                  <ShortField id="faturamentoMensal" label="Qual é o seu faturamento mensal atual? (Considere a média dos últimos 3 meses)" />
+                  <ShortField id="novasVendasMensais" label="Quantas novas vendas (novos contratos) a empresa fecha, em média, por mês atualmente, e quantas vocês gostariam de fechar?" example="Ex: Fechamos 2 por mês, mas a meta é fechar 5 por mês" />
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <ShortField id="clientesAtivos" label="Quantos clientes ativos a empresa possui atualmente?" type="number" />
+                    <ShortField id="totalColaboradores" label="Qual o número total de colaboradores na empresa hoje?" type="number" />
+                    <ShortField id="equipeVendaAtiva" label="Desse total, qual o número de pessoas focadas exclusivamente em vendas (venda ativa)?" type="number" />
                   </div>
+                </section>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="redesSociais" className="text-white">
-                      Redes Sociais (Links principais, ex: LinkedIn/Instagram)
-                    </Label>
-                    <Input
-                      id="redesSociais"
-                      name="redesSociais"
-                      className="bg-slate-600 border-slate-500 text-white placeholder:text-gray-400"
-                      placeholder="https://linkedin.com/company/exemplo"
-                    />
+                <section className="space-y-6 rounded-lg bg-slate-700 p-6">
+                  <h2 className="text-xl font-semibold text-yellow-400">Seção 1: Visão Estratégica e Objetivos</h2>
+                  <p className="text-sm italic text-gray-300">Foco: Para onde a empresa está indo</p>
+                  <LongField id="metaCrescimentoReceita" label="1.1. Qual é a meta de crescimento de receita para este ano e para os próximos 3 anos?" example="Ex: Crescer 20% em receita este ano e dobrar o faturamento nos próximos 3 anos." />
+                  <LongField id="visaoLongoPrazo" label="1.2. Qual é a visão de longo prazo para a empresa? Como vocês enxergam o negócio no futuro?" example="Ex: Ser a maior referência do nosso serviço no estado; ou, expandir para atendimento nacional." />
+                  <LongField id="alinhamentoComercial" label="1.3. Como o setor comercial se alinha e contribui com essa visão geral da empresa hoje?" example="Ex: O comercial hoje foca apenas em apagar incêndios e fechar qualquer venda; ou, o comercial foca em trazer apenas clientes do perfil ideal para garantir nosso crescimento seguro." />
+                </section>
+
+                <section className="space-y-6 rounded-lg bg-slate-700 p-6">
+                  <h2 className="text-xl font-semibold text-yellow-400">Seção 2: Mercado e Posicionamento</h2>
+                  <p className="text-sm italic text-gray-300">Foco: Onde a empresa compete e por que ela ganha</p>
+                  <LongField id="clienteIdeal" label="2.1. Como vocês descrevem o cliente ideal da empresa hoje (ICP - Perfil de Cliente Ideal)?" example="Ex: Empresas de médio porte do setor varejista, que faturam acima de R$ 1 milhão e têm problemas de logística." />
+                  <LongField id="diferencial" label="2.2. Por que os clientes escolhem o serviço de vocês e não o dos concorrentes? (Qual o seu diferencial?)" example="Ex: Nosso diferencial é o atendimento humanizado 24h e a rapidez na entrega." />
+                  <LongField id="principaisConcorrentes" label="2.3. Quem são seus principais concorrentes hoje?" example="Ex: Empresa X, Clínica Y e Loja Z." />
+                  <LongField id="motivosPerdaVendas" label="2.4. Por que vocês acabam perdendo vendas (negócios perdidos) para esses concorrentes?" example="Ex: Perdemos muito pelo nosso preço ser mais alto; ou, perdemos porque eles têm mais tempo de mercado e o cliente sente mais segurança neles." />
+                  <LongField id="objecoesClientes" label="2.5. Quando um cliente está pensando em contratar vocês, quais são as principais objeções e desculpas que ele dá para não fechar?" example={'Ex: "Achei caro", "Preciso falar com meu sócio", "Vou deixar para o mês que vem".'} />
+                  <LongField id="tratamentoObjecoes" label="2.6. Como a sua equipe lida com essas objeções no dia a dia?" example="Ex: Nós geralmente damos desconto para não perder a venda; ou, temos um roteiro pronto onde mostramos que nosso serviço dá mais retorno que o do concorrente." />
+                </section>
+
+                <section className="space-y-6 rounded-lg bg-slate-700 p-6">
+                  <h2 className="text-xl font-semibold text-yellow-400">Seção 3: Processo de Aquisição e Venda</h2>
+                  <p className="text-sm italic text-gray-300">Foco: O &apos;Como&apos; - A jornada prática do cliente</p>
+                  <div className="space-y-3">
+                    <Label className="text-white">3.1. De onde vem a maioria dos seus clientes hoje? (Selecione as opções) *</Label>
+                    {canaisOptions.map((option) => (
+                      <div key={option} className="flex items-center gap-2">
+                        <Checkbox id={`canal-${option}`} checked={canaisAquisicao.includes(option)} onCheckedChange={(checked) => toggleCanal(option, checked === true)} className="border-gray-400 data-[state=checked]:bg-yellow-500 data-[state=checked]:text-slate-900" />
+                        <Label htmlFor={`canal-${option}`} className="cursor-pointer text-white">{option}</Label>
+                      </div>
+                    ))}
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="areaAtuacao" className="text-white">
-                      Área de atuação *
-                    </Label>
-                    <Input
-                      id="areaAtuacao"
-                      name="areaAtuacao"
-                      required
-                      className="bg-slate-600 border-slate-500 text-white placeholder:text-gray-400"
-                      placeholder="Ex: Indústria Metalúrgica, SaaS B2B, Advocacia Empresarial"
-                    />
+                  <ShortField id="taxaConversao" label="3.2. Qual é a sua taxa de conversão média? De cada 10 propostas que vocês enviam, quantas viram vendas de fato?" example="Ex: Enviamos 10 propostas e fechamos 3 vendas, ou seja, taxa de 30%." />
+                  <div className="space-y-3">
+                    <Label className="text-white">3.3. O setor comercial segue um processo estruturado e tem integração com os esforços de marketing e operações? *</Label>
+                    <RadioGroup name="processoIntegrado" value={processoIntegrado} onValueChange={setProcessoIntegrado} required className="space-y-3">
+                      {["Não", "Sim"].map((option) => <div key={option} className="flex items-center gap-2"><RadioGroupItem value={option} id={`integracao-${option}`} className="border-gray-400 text-yellow-400" /><Label htmlFor={`integracao-${option}`} className="cursor-pointer text-white">{option}</Label></div>)}
+                    </RadioGroup>
                   </div>
+                  {processoIntegrado === "Sim" && <LongField id="descricaoIntegracao" label="Como funciona essa integração?" example="Ex: O marketing gera o contato através de anúncios, envia para a planilha do comercial e o comercial liga no mesmo dia." />}
+                  <ShortField id="cicloVendas" label="3.4. Qual é o tempo médio do seu Ciclo de Vendas (quanto tempo leva entre o primeiro contato com o cliente até a assinatura do contrato/pagamento)?" example="Ex: Geralmente demora 2 semanas; ou, varia de 1 a 3 meses dependendo do tamanho da empresa." />
+                </section>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="faturamentoAnual" className="text-white">
-                      Faturamento Anual Bruto *
-                    </Label>
-                    <Input
-                      id="faturamentoAnual"
-                      name="faturamentoAnual"
-                      required
-                      className="bg-slate-600 border-slate-500 text-white placeholder:text-gray-400"
-                      placeholder="Ex: R$ 5M/ano"
-                    />
+                <section className="space-y-6 rounded-lg bg-slate-700 p-6">
+                  <h2 className="text-xl font-semibold text-yellow-400">Seção 4: Equipe Comercial e Gestão</h2>
+                  <p className="text-sm italic text-gray-300">Foco: O &apos;Quem&apos; - As pessoas que executam o processo</p>
+                  <LongField id="estruturaEquipeComercial" label="4.1. Como a sua equipe comercial está dividida hoje? Quais são as funções?" example="Ex: Tenho 1 pessoa só para prospectar e agendar reuniões e 2 vendedores que fazem o fechamento e negociação." />
+                  <LongField id="remuneracaoVariavel" label="4.2. Existe um modelo de remuneração variável ou comissões? Se sim, como funciona de forma resumida?" example="Ex: Sim, salário fixo de R$ 2.000 + 5% de comissão por cada contrato novo fechado." />
+                  <LongField id="treinamentoVendedores" label="4.3. Como vocês treinam os vendedores novos e como atualizam os vendedores antigos?" example="Ex: O novo vendedor acompanha o mais velho por 15 dias; não temos treinamento formal, ele aprende na prática." />
+                </section>
+
+                <section className="space-y-6 rounded-lg bg-slate-700 p-6">
+                  <h2 className="text-xl font-semibold text-yellow-400">Seção 5: Tecnologia e Ferramentas (Tech Stack)</h2>
+                  <p className="text-sm italic text-gray-300">Foco: As ferramentas que dão suporte à operação</p>
+                  <LongField id="ferramentasVendas" label="5.1. Quais ferramentas e softwares a equipe de vendas utiliza no dia a dia?" example="Ex: Usamos o RD Station para marketing, Trello para organizar tarefas e WhatsApp Business para contato." />
+                  <div className="space-y-3">
+                    <Label className="text-white">5.2. Vocês utilizam algum sistema de CRM (Sistema de controle de relacionamento com o cliente)? *</Label>
+                    <RadioGroup name="possuiCRM" value={possuiCRM} onValueChange={setPossuiCRM} required className="space-y-3">
+                      <div className="flex items-start gap-2"><RadioGroupItem value="Não" id="crm-nao" className="mt-1 border-gray-400 text-yellow-400" /><Label htmlFor="crm-nao" className="cursor-pointer text-white">Não, gerenciamos por planilhas (Excel/Google Sheets), cadernos ou direto no WhatsApp.</Label></div>
+                      <div className="flex items-center gap-2"><RadioGroupItem value="Sim" id="crm-sim" className="border-gray-400 text-yellow-400" /><Label htmlFor="crm-sim" className="cursor-pointer text-white">Sim. Qual?</Label></div>
+                    </RadioGroup>
                   </div>
+                  {possuiCRM === "Sim" && <ShortField id="qualCRM" label="Qual CRM vocês utilizam?" example="Ex: Pipedrive, HubSpot, RD CRM, Moskit." />}
+                </section>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="numeroFuncionarios" className="text-white">
-                        Número de Funcionários (Total) *
-                      </Label>
-                      <Input
-                        id="numeroFuncionarios"
-                        name="numeroFuncionarios"
-                        type="number"
-                        required
-                        className="bg-slate-600 border-slate-500 text-white placeholder:text-gray-400"
-                        placeholder="Ex: 45"
-                      />
-                    </div>
+                <section className="space-y-6 rounded-lg bg-slate-700 p-6">
+                  <h2 className="text-xl font-semibold text-yellow-400">Seção 6: Desafios e Obstáculos</h2>
+                  <p className="text-sm italic text-gray-300">Foco: Os problemas a serem resolvidos</p>
+                  <LongField id="maiorGargalo" label="6.1. Qual é o maior gargalo (dificuldade) do comercial hoje que impede vocês de crescerem mais rápido?" example="Ex: Nossa maior dificuldade é atrair clientes qualificados, só chega gente pedindo desconto e sem dinheiro." />
+                  <LongField id="preocupacaoVendas" label="6.2. O que tem tirado o seu sono ultimamente em relação às vendas da empresa?" example="Ex: A dependência exclusiva de indicações; se não nos indicarem ninguém, nós não batemos a meta naquele mês." />
+                </section>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="numeroFuncionariosComercial" className="text-white">
-                        Número de Funcionários (Comercial) *
-                      </Label>
-                      <Input
-                        id="numeroFuncionariosComercial"
-                        name="numeroFuncionariosComercial"
-                        type="number"
-                        required
-                        className="bg-slate-600 border-slate-500 text-white placeholder:text-gray-400"
-                        placeholder="Ex: 4"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="quantidadeClientesAtivos" className="text-white">
-                      Quantos clientes a empresa possui atualmente? *
-                    </Label>
-                    <Input
-                      id="quantidadeClientesAtivos"
-                      name="quantidadeClientesAtivos"
-                      type="number"
-                      required
-                      className="bg-slate-600 border-slate-500 text-white placeholder:text-gray-400"
-                      placeholder="Ex: 120 clientes ativos"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="website" className="text-white">
-                      Website
-                    </Label>
-                    <Input
-                      id="website"
-                      name="website"
-                      type="url"
-                      className="bg-slate-600 border-slate-500 text-white placeholder:text-gray-400"
-                      placeholder="https://www.exemplo.com.br"
-                    />
-                  </div>
-                </div>
-
-                <div className="bg-slate-700 p-6 rounded-lg space-y-6">
-                  <h3 className="text-xl font-semibold text-yellow-400 mb-4">Seção 1: Visão Estratégica e Objetivos</h3>
-                  <p className="text-gray-300 text-sm italic">Foco: Para onde a empresa está indo.</p>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="marcosMoldaram" className="text-white">
-                      1.1. Quais os principais marcos que moldaram a história da sua empresa? Quais desafios ou
-                      conquistas foram mais marcantes? *
-                    </Label>
-                    <Textarea
-                      id="marcosMoldaram"
-                      name="marcosMoldaram"
-                      required
-                      rows={4}
-                      className="bg-slate-600 border-slate-500 text-white placeholder:text-gray-400"
-                      placeholder="Descreva os principais marcos..."
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="proposito" className="text-white">
-                      1.2. Além do lucro, qual é o verdadeiro propósito desta empresa? O que mais te movimenta como
-                      gestor(a)? *
-                    </Label>
-                    <Textarea
-                      id="proposito"
-                      name="proposito"
-                      required
-                      rows={4}
-                      className="bg-slate-600 border-slate-500 text-white placeholder:text-gray-400"
-                      placeholder="Descreva o propósito da empresa..."
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="objetivosComerciais" className="text-white">
-                      1.3. Quais são os principais objetivos comerciais para os próximos 6-12 meses? *
-                    </Label>
-                    <Textarea
-                      id="objetivosComerciais"
-                      name="objetivosComerciais"
-                      required
-                      rows={4}
-                      className="bg-slate-600 border-slate-500 text-white placeholder:text-gray-400"
-                      placeholder="Exemplo: Aumentar o faturamento em 30%, Conquistar 10 novos clientes no setor industrial..."
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="sonhoFuturo" className="text-white">
-                      1.4. Se pudesse sonhar alto, onde gostaria de ver a empresa em 2-3 anos? *
-                    </Label>
-                    <Textarea
-                      id="sonhoFuturo"
-                      name="sonhoFuturo"
-                      required
-                      rows={4}
-                      className="bg-slate-600 border-slate-500 text-white placeholder:text-gray-400"
-                      placeholder="Descreva sua visão de futuro..."
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="principalDesafio" className="text-white">
-                      1.5. Considerando esses objetivos para os próximos 6-12 meses e sua visão para 2-3 anos, qual
-                      você identifica como o principal desafio ou obstáculo que a empresa precisa superar para
-                      alcançá-los? *
-                    </Label>
-                    <Textarea
-                      id="principalDesafio"
-                      name="principalDesafio"
-                      required
-                      rows={4}
-                      className="bg-slate-600 border-slate-500 text-white placeholder:text-gray-400"
-                      placeholder="Descreva o principal desafio ou obstáculo..."
-                    />
-                  </div>
-                </div>
-
-                <div className="bg-slate-700 p-6 rounded-lg space-y-6">
-                  <h3 className="text-xl font-semibold text-yellow-400 mb-4">Seção 2: Mercado e Posicionamento</h3>
-                  <p className="text-gray-300 text-sm italic">Foco: Onde a empresa compete e por que ela ganha.</p>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="perfilClienteIdeal" className="text-white">
-                      2.1. Descreva o Perfil de Cliente Ideal (ICP). Qual tipo de empresa traz mais resultado e é melhor
-                      para trabalhar? *
-                    </Label>
-                    <Textarea
-                      id="perfilClienteIdeal"
-                      name="perfilClienteIdeal"
-                      required
-                      rows={4}
-                      className="bg-slate-600 border-slate-500 text-white placeholder:text-gray-400"
-                      placeholder="Exemplo: Indústrias de manufatura, acima de 100 funcionários, com dor em logística interna..."
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="principaisConcorrentes" className="text-white">
-                      2.2. Quem são seus principais concorrentes (diretos e indiretos)? *
-                    </Label>
-                    <Textarea
-                      id="principaisConcorrentes"
-                      name="principaisConcorrentes"
-                      required
-                      rows={4}
-                      className="bg-slate-600 border-slate-500 text-white placeholder:text-gray-400"
-                      placeholder="Liste os principais concorrentes..."
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="diferencialReal" className="text-white">
-                      2.3. O que, na prática, faz um cliente escolher vocês em vez da concorrência? Qual é o seu real
-                      diferencial? *
-                    </Label>
-                    <Textarea
-                      id="diferencialReal"
-                      name="diferencialReal"
-                      required
-                      rows={4}
-                      className="bg-slate-600 border-slate-500 text-white placeholder:text-gray-400"
-                      placeholder="Exemplo: Nosso suporte técnico é personalizado e resolve em 24h, não é um call center..."
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="tendenciasMercado" className="text-white">
-                      2.4. Quais tendências do seu mercado você avalia como uma grande ameaça ou uma grande
-                      oportunidade? *
-                    </Label>
-                    <Textarea
-                      id="tendenciasMercado"
-                      name="tendenciasMercado"
-                      required
-                      rows={4}
-                      className="bg-slate-600 border-slate-500 text-white placeholder:text-gray-400"
-                      placeholder="Descreva as tendências do mercado..."
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="buscadosclientesideais" className="text-white">
-                      2.5. Como seus clientes ideais (ICP) tipicamente buscam e descobrem soluções como a sua? Quais
-                      canais ou fontes de informação eles mais utilizam para pesquisar e tomar decisões? *
-                    </Label>
-                    <Textarea
-                      id="buscadosclientesideais"
-                      name="buscadosclientesideais"
-                      required
-                      rows={4}
-                      className="bg-slate-600 border-slate-500 text-white placeholder:text-gray-400"
-                      placeholder="Descreva como geralmente seus clientes ideais buscam e descobrem soluções como a sua."
-                    />
-                  </div>
-                </div>
-
-                <div className="bg-slate-700 p-6 rounded-lg space-y-6">
-                  <h3 className="text-xl font-semibold text-yellow-400 mb-4">Seção 3: Processo de Aquisição e Venda</h3>
-                  <p className="text-gray-300 text-sm italic">Foco: O 'Como' - A jornada prática do cliente.</p>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="canaisAquisicao" className="text-white">
-                      3.1. De onde vêm os clientes hoje? Quais são os canais de aquisição mais potentes? *
-                    </Label>
-                    <Textarea
-                      id="canaisAquisicao"
-                      name="canaisAquisicao"
-                      required
-                      rows={4}
-                      className="bg-slate-600 border-slate-500 text-white placeholder:text-gray-400"
-                      placeholder="Exemplo: Indicações de clientes atuais (80%), Prospecção ativa (10%), Feiras do setor, Google Ads..."
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="jornadaCliente" className="text-white">
-                      3.2. Descreva a jornada do cliente, do primeiro contato ao pós-venda. Quais são as etapas-chave do
-                      processo comercial? *
-                    </Label>
-                    <Textarea
-                      id="jornadaCliente"
-                      name="jornadaCliente"
-                      required
-                      rows={4}
-                      className="bg-slate-600 border-slate-500 text-white placeholder:text-gray-400"
-                      placeholder="Exemplo: 1. SDR prospecta. 2. Vendedor faz a visita/demo. 3. Envio da proposta técnica. 4. Negociação. 5. Onboarding/Implantação..."
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="processoEstruturado" className="text-white">
-                      3.3. O comercial segue algum processo estruturado (playbook, script, metodologia)? Como é a
-                      integração com Marketing e Operações? *
-                    </Label>
-                    <Textarea
-                      id="processoEstruturado"
-                      name="processoEstruturado"
-                      required
-                      rows={4}
-                      className="bg-slate-600 border-slate-500 text-white placeholder:text-gray-400"
-                      placeholder="Descreva o processo estruturado..."
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="monitoramentoSatisfacao" className="text-white">
-                      3.4. Como vocês monitoram a satisfação do cliente e coletam feedbacks? *
-                    </Label>
-                    <Textarea
-                      id="monitoramentoSatisfacao"
-                      name="monitoramentoSatisfacao"
-                      required
-                      rows={4}
-                      className="bg-slate-600 border-slate-500 text-white placeholder:text-gray-400"
-                      placeholder="Descreva como monitoram a satisfação..."
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="etapadepercepcao" className="text-white">
-                      3.5. Ao longo dessa jornada do cliente, em qual etapa você percebe que a empresa perde mais
-                      oportunidades ou que o processo se torna mais lento? Se possível, qual é a taxa de conversão
-                      aproximada entre as principais etapas? *
-                    </Label>
-                    <Textarea
-                      id="etapadepercepcao"
-                      name="etapadepercepcao"
-                      required
-                      rows={4}
-                      className="bg-slate-600 border-slate-500 text-white placeholder:text-gray-400"
-                      placeholder="(Ex: lead para proposta, proposta para fechamento)"
-                    />
-                  </div>
-                </div>
-
-                <div className="bg-slate-700 p-6 rounded-lg space-y-6">
-                  <h3 className="text-xl font-semibold text-yellow-400 mb-4">Seção 4: Equipe Comercial e Gestão</h3>
-                  <p className="text-gray-300 text-sm italic">Foco: O 'Quem' - As pessoas que executam o processo.</p>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="composicaoEquipe" className="text-white">
-                      4.1. Como é composta sua equipe comercial hoje? *
-                    </Label>
-                    <Textarea
-                      id="composicaoEquipe"
-                      name="composicaoEquipe"
-                      required
-                      rows={4}
-                      className="bg-slate-600 border-slate-500 text-white placeholder:text-gray-400"
-                      placeholder="Exemplo: 1 Gerente, 2 Vendedores (Field Sales), 1 SDR/Pré-vendas ou Eu (Sócio) e 1 Assistente que monta as propostas..."
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="kpisComerciais" className="text-white">
-                      4.2. Quais números-chave (KPIs) vocês usam para medir o sucesso comercial da equipe? *
-                    </Label>
-                    <Textarea
-                      id="kpisComerciais"
-                      name="kpisComerciais"
-                      required
-                      rows={4}
-                      className="bg-slate-600 border-slate-500 text-white placeholder:text-gray-400"
-                      placeholder="Exemplo: Nº de propostas enviadas, Taxa de conversão (Proposta > Venda), Custo de Aquisição de Cliente (CAC), Faturamento por vendedor..."
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="incentivosMotivacao" className="text-white">
-                      4.3. Quais tipos de incentivos ou programas de motivação (comissão, bônus) vocês praticam? *
-                    </Label>
-                    <Textarea
-                      id="incentivosMotivacao"
-                      name="incentivosMotivacao"
-                      required
-                      rows={4}
-                      className="bg-slate-600 border-slate-500 text-white placeholder:text-gray-400"
-                      placeholder="Descreva os incentivos e programas de motivação..."
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="buscaAprimoramento" className="text-white">
-                      4.4. Considerando que a venda é muitas vezes conduzida por você ou por uma pessoa chave, e que o
-                      processo pode ser mais intuitivo, como vocês buscam aprimorar a forma de vender e apresentar o
-                      produto/serviço? Há alguma prática ou recurso que utilizam para aprender e evoluir nesse aspecto? *
-                    </Label>
-                    <Textarea
-                      id="buscaAprimoramento"
-                      name="buscaAprimoramento"
-                      required
-                      rows={4}
-                      className="bg-slate-600 border-slate-500 text-white placeholder:text-gray-400"
-                      placeholder="Descreva suas buscas de aprimoramento.."
-                    />
-                  </div>
-                </div>
-
-                <div className="bg-slate-700 p-6 rounded-lg space-y-6">
-                  <h3 className="text-xl font-semibold text-yellow-400 mb-4">
-                    Seção 5: Tecnologia e Ferramentas (Tech Stack)
-                  </h3>
-                  <p className="text-gray-300 text-sm italic">Foco: As ferramentas que dão suporte à operação.</p>
-
-                  <div className="space-y-4">
-                    <Label className="text-white text-lg">5.1. Vocês utilizam sistema de CRM? *</Label>
-                    <div className="space-y-3">
-                      <label className="flex items-start space-x-3 text-white cursor-pointer">
-                        <input type="radio" name="possuiCRM" value="Sim" className="mt-1" required />
-                        <div className="space-y-2 flex-1">
-                          <span>Sim, qual?</span>
-                          <Input
-                            name="qualCRM"
-                            className="bg-slate-600 border-slate-500 text-white placeholder:text-gray-400"
-                            placeholder="Ex: Salesforce, Pipedrive, RD Station, Moskit"
-                          />
-                        </div>
-                      </label>
-
-                      <label className="flex items-center space-x-3 text-white cursor-pointer">
-                        <input type="radio" name="possuiCRM" value="Não, gerenciamos por planilhas ou outro método" />
-                        <span>Não, gerenciamos por planilhas ou outro método</span>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="outrasFerramentas" className="text-white">
-                      5.2. Quais outras ferramentas e tecnologias são essenciais para a gestão e o comercial? *
-                    </Label>
-                    <Textarea
-                      id="outrasFerramentas"
-                      name="outrasFerramentas"
-                      required
-                      rows={4}
-                      className="bg-slate-600 border-slate-500 text-white placeholder:text-gray-400"
-                      placeholder="Exemplo: ERP (Totvs/SAP), Ferramenta de prospecção (Apollo/LinkedIn Sales Navigator), Planilhas, Sistema de BI (Power BI)..."
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="funcionalidadesouFerramentas" className="text-white">
-                      5.3. Quais funcionalidades ou ferramentas vocês sentem falta para otimizar a gestão comercial, ou
-                      quais integrações entre as ferramentas atuais seriam importantes para a empresa? *
-                    </Label>
-                    <Textarea
-                      id="funcionalidadesouFerramentas"
-                      name="funcionalidadesouFerramentas"
-                      required
-                      rows={4}
-                      className="bg-slate-600 border-slate-500 text-white placeholder:text-gray-400"
-                      placeholder="(ex: CRM com ERP, Bling, Asas, atendimento automatizado, agendamento automatizado, lembretes automatizados)."
-                    />
-                  </div>
-                </div>
-
-                <div className="bg-slate-700 p-6 rounded-lg space-y-6">
-                  <h3 className="text-xl font-semibold text-yellow-400 mb-4">Seção 6: Desafios e Obstáculos</h3>
-                  <p className="text-gray-300 text-sm italic">Foco: Os problemas a serem resolvidos.</p>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="maiorGargalo" className="text-white">
-                      6.1. Qual é o maior gargalo ou frustração no processo comercial hoje? *
-                    </Label>
-                    <Textarea
-                      id="maiorGargalo"
-                      name="maiorGargalo"
-                      required
-                      rows={4}
-                      className="bg-slate-600 border-slate-500 text-white placeholder:text-gray-400"
-                      placeholder="Exemplo: O ciclo de vendas é muito longo, Os vendedores perdem tempo com burocracia, Perdemos muita venda por preço, Não conseguimos gerar leads qualificados suficientes..."
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="testesRealizados" className="text-white">
-                      6.2. O que já foi testado para solucionar esses gargalos? Deu algum resultado? *
-                    </Label>
-                    <Textarea
-                      id="testesRealizados"
-                      name="testesRealizados"
-                      required
-                      rows={4}
-                      className="bg-slate-600 border-slate-500 text-white placeholder:text-gray-400"
-                      placeholder="Descreva as tentativas realizadas e seus resultados..."
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="impactoDireto" className="text-white">
-                      6.3 . Qual o impacto direto ou indireto desses gargalos e frustrações nos resultados da empresa? *
-                    </Label>
-                    <Textarea
-                      id="impactoDireto"
-                      name="impactoDireto"
-                      required
-                      rows={4}
-                      className="bg-slate-600 border-slate-500 text-white placeholder:text-gray-400"
-                      placeholder="(Ex: perda de faturamento, aumento de custos, sobrecarga da equipe, insatisfação de clientes, etc.)"
-                    />
-                  </div>
-                </div>
-
-                <Button
-                  type="submit"
-                  disabled={isSubmittingDiretoria}
-                  className="w-full bg-yellow-600 hover:bg-yellow-700 text-black font-semibold py-3 text-lg"
-                >
-                  {isSubmittingDiretoria ? "Enviando..." : "Enviar Formulário"}
-                </Button>
+                <Button type="submit" disabled={isSubmitting} className="w-full bg-yellow-600 py-3 text-lg font-semibold text-black hover:bg-yellow-700">{isSubmitting ? "Enviando..." : "Enviar Formulário"}</Button>
               </form>
             </CardContent>
           </Card>
         </div>
       </main>
 
-      <footer className="bg-slate-900 border-t border-slate-700 py-8 mt-16">
-        <div className="container mx-auto px-4 text-center">
-          <p className="text-gray-400">© 2025 Prospect Vendas. Todos os direitos reservados.</p>
-        </div>
-      </footer>
+      <footer className="mt-16 border-t border-slate-700 bg-slate-900 py-8"><div className="container mx-auto px-4 text-center"><p className="text-gray-400">© 2025 Prospect Vendas. Todos os direitos reservados.</p></div></footer>
     </div>
   )
 }

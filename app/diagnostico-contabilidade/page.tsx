@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { CheckCircle2 } from "lucide-react"
 
@@ -24,19 +25,22 @@ export default function DiagnosticoContabilidade() {
     cnpj: "",
     telefone: "",
     endereçoDoescritorio: "",
-    redesSociais: "",
     site: "",
+    linkedin: "",
+    instagram: "",
     principalAreaAtuacao: "",
-    faturamentoAnual: "",
+    faturamentoMensal: "",
     numeroColaboradores: "",
     numeroColaboradorescomercial: "",
     numeroClientesAtivos: "",
+    numeroEquipeVendaAtiva: "",
+    novasVendasMensais: "",
     missaoEscritorio: "",
     marcoDesafio: "",
 
     // Seção 2: Estratégia e Objetivos
-    objetivosComerciais: "",
-    indicadoresDesempenho: "",
+    objetivosComerciais: [] as string[],
+    indicadoresDesempenho: [] as string[],
     diferenciacaoMercado: "",
 
     // Seção 3: Cliente Ideal
@@ -45,13 +49,13 @@ export default function DiagnosticoContabilidade() {
     principalDor: "",
 
     // Seção 4: Máquina de Vendas
-    canaisAquisicao: "",
+    canaisAquisicao: [] as string[],
     jornadaVenda: "",
     responsavelVenda: "",
     estiloLideranca: "",
 
     // Seção 5: Desafios e Oportunidades
-    gargalosDesafios: "",
+    gargalosDesafios: [] as string[],
     concorrentes: "",
     visaoFuturo: "",
 
@@ -59,14 +63,36 @@ export default function DiagnosticoContabilidade() {
     ferramentasUtilizadas: "",
     utilizaCRM: "",
     qualCRM: "",
+    campanhasPagas: [] as string[],
   })
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
+  const handleCheckboxChange = (field: "objetivosComerciais" | "indicadoresDesempenho" | "canaisAquisicao" | "gargalosDesafios" | "campanhasPagas", value: string, checked: boolean) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: checked ? [...prev[field], value] : prev[field].filter((item) => item !== value),
+    }))
+  }
+
+  const checkboxGroups = [
+    formData.objetivosComerciais,
+    formData.indicadoresDesempenho,
+    formData.canaisAquisicao,
+    formData.gargalosDesafios,
+    formData.campanhasPagas,
+  ]
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (checkboxGroups.some((group) => group.length === 0)) {
+      alert("Selecione pelo menos uma opção em cada grupo de múltipla escolha.")
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
@@ -224,34 +250,47 @@ export default function DiagnosticoContabilidade() {
                         value={formData.endereçoDoescritorio}
                         onChange={(e) => handleInputChange("endereçoDoescritorio", e.target.value)}
                         className="bg-slate-700 border-slate-600 text-white"
-                        placeholder="Ex: Rua Exemplo, 123 - Centro, Rio de Janeiro/RJ"
                       />
-
-                    </div>
-
-                      <div className="space-y-2">
-                      <Label htmlFor="redesSociais" className="text-gray-300">
-                        Redes Sociais (Links principais, ex: LinkedIn/Instagram):
-                      </Label>
-                      <Input
-                        id="redesSociais"
-                        value={formData.redesSociais}
-                        onChange={(e) => handleInputChange("redesSociais", e.target.value)}
-                        className="bg-slate-700 border-slate-600 text-white"
-                        placeholder="Ex: www.meuescritorio.com.br / linkedin.com/company/meuescritorio"
-                      />
+                      <p className="text-sm text-gray-400">Ex: Rua Exemplo, 123 - Centro, Rio de Janeiro/RJ</p>
                     </div>
 
                     <div className="space-y-2">
                       <Label htmlFor="site" className="text-gray-300">
-                        Site :
+                        Link do Site:
                       </Label>
                       <Input
                         id="site"
                         value={formData.site}
                         onChange={(e) => handleInputChange("site", e.target.value)}
                         className="bg-slate-700 border-slate-600 text-white"
-                        placeholder="Ex: www.meuescritorio.com.br"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="linkedin" className="text-gray-300">
+                        Link do LinkedIn (se tiver):
+                      </Label>
+                      <Input
+                        id="linkedin"
+                        value={formData.linkedin}
+                        onChange={(e) => handleInputChange("linkedin", e.target.value)}
+                        className="bg-slate-700 border-slate-600 text-white"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="instagram" className="text-gray-300">
+                        Arroba do Instagram:
+                      </Label>
+                      <p className="text-sm text-gray-400">Ex: @suacontabilidade</p>
+                      <Input
+                        id="instagram"
+                        value={formData.instagram}
+                        onChange={(e) => handleInputChange("instagram", e.target.value)}
+                        className="bg-slate-700 border-slate-600 text-white"
+                        required
                       />
                     </div>
                   </div>
@@ -263,26 +302,25 @@ export default function DiagnosticoContabilidade() {
                       <Label htmlFor="principalAreaAtuacao" className="text-gray-300">
                         Principal Área de Atuação:
                       </Label>
+                      <p className="text-sm text-gray-400">Ex: Contabilidade para PMEs, BPO Financeiro, Nicho de saúde</p>
                       <Input
                         id="principalAreaAtuacao"
                         value={formData.principalAreaAtuacao}
                         onChange={(e) => handleInputChange("principalAreaAtuacao", e.target.value)}
                         className="bg-slate-700 border-slate-600 text-white"
-                        placeholder="Ex: Contabilidade para PMEs, BPO Financeiro, Nicho de saúde"
                         required
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="faturamentoAnual" className="text-gray-300">
-                        Faturamento Anual Bruto (último ano):
+                      <Label htmlFor="faturamentoMensal" className="text-gray-300">
+                        Qual é o seu faturamento mensal atual? (Considere a média dos últimos 3 meses)
                       </Label>
                       <Input
-                        id="faturamentoAnual"
-                        value={formData.faturamentoAnual}
-                        onChange={(e) => handleInputChange("faturamentoAnual", e.target.value)}
+                        id="faturamentoMensal"
+                        value={formData.faturamentoMensal}
+                        onChange={(e) => handleInputChange("faturamentoMensal", e.target.value)}
                         className="bg-slate-700 border-slate-600 text-white"
-                        placeholder="Ex: R$ 1.200.000,00"
                         required
                       />
                     </div>
@@ -291,12 +329,12 @@ export default function DiagnosticoContabilidade() {
                       <Label htmlFor="numeroColaboradores" className="text-gray-300">
                         Número Total de Colaboradores:
                       </Label>
+                      <p className="text-sm text-gray-400">Ex: 12 no total, sendo 2 no comercial</p>
                       <Input
                         id="numeroColaboradores"
                         value={formData.numeroColaboradores}
                         onChange={(e) => handleInputChange("numeroColaboradores", e.target.value)}
                         className="bg-slate-700 border-slate-600 text-white"
-                        placeholder="Ex: 12 no total, sendo 2 no comercial"
                         required
                       />
                     </div>
@@ -305,28 +343,42 @@ export default function DiagnosticoContabilidade() {
                       <Label htmlFor="numeroColaboradorescomercial" className="text-gray-300">
                         Número de Colaboradores (Comercial):
                       </Label>
+                      <p className="text-sm text-gray-400">Ex: 2 no comercial</p>
                       <Input
                         id="numeroColaboradorescomercial"
                         value={formData.numeroColaboradorescomercial}
                         onChange={(e) => handleInputChange("numeroColaboradorescomercial", e.target.value)}
                         className="bg-slate-700 border-slate-600 text-white"
-                        placeholder="Ex: 2 no comercial"
                         required
                       />
                     </div>
 
                     <div className="space-y-2">
                       <Label htmlFor="numeroClientesAtivos" className="text-gray-300">
-                        Número de Clientes Ativos:
+                        Qual é o seu número de clientes ativos hoje?
                       </Label>
                       <Input
                         id="numeroClientesAtivos"
                         value={formData.numeroClientesAtivos}
                         onChange={(e) => handleInputChange("numeroClientesAtivos", e.target.value)}
                         className="bg-slate-700 border-slate-600 text-white"
-                        placeholder="Ex: 95 empresas na carteira"
                         required
                       />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="numeroEquipeVendaAtiva" className="text-gray-300">
+                        Qual o número de pessoas na equipe focadas exclusivamente em vendas (venda ativa)?
+                      </Label>
+                      <Input id="numeroEquipeVendaAtiva" value={formData.numeroEquipeVendaAtiva} onChange={(e) => handleInputChange("numeroEquipeVendaAtiva", e.target.value)} className="bg-slate-700 border-slate-600 text-white" required />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="novasVendasMensais" className="text-gray-300">
+                        Quantas novas vendas (novos contratos) sua contabilidade fecha, em média, por mês atualmente, e quantas vocês gostariam de fechar?
+                      </Label>
+                      <p className="text-sm text-gray-400">Ex: Fechamos 2 por mês, mas a meta é fechar 5 por mês</p>
+                      <Textarea id="novasVendasMensais" value={formData.novasVendasMensais} onChange={(e) => handleInputChange("novasVendasMensais", e.target.value)} className="bg-slate-700 border-slate-600 text-white min-h-[80px]" required />
                     </div>
                   </div>
 
@@ -337,12 +389,12 @@ export default function DiagnosticoContabilidade() {
                       <Label htmlFor="missaoEscritorio" className="text-gray-300">
                         Além do compliance, qual é a missão do seu escritório?
                       </Label>
+                      <p className="text-sm text-gray-400">Ex: Ser o braço direito estratégico do empresário, usando os números para gerar crescimento.</p>
                       <Textarea
                         id="missaoEscritorio"
                         value={formData.missaoEscritorio}
                         onChange={(e) => handleInputChange("missaoEscritorio", e.target.value)}
                         className="bg-slate-700 border-slate-600 text-white min-h-[100px]"
-                        placeholder="Exemplo: Ser o braço direito estratégico do empresário, usando os números para gerar crescimento."
                         required
                       />
                     </div>
@@ -351,12 +403,12 @@ export default function DiagnosticoContabilidade() {
                       <Label htmlFor="marcoDesafio" className="text-gray-300">
                         Qual foi o marco ou desafio mais importante da sua história?
                       </Label>
+                      <p className="text-sm text-gray-400">Ex: A chegada da contabilidade online nos forçou a criar e vender serviços de maior valor, como o BPO.</p>
                       <Textarea
                         id="marcoDesafio"
                         value={formData.marcoDesafio}
                         onChange={(e) => handleInputChange("marcoDesafio", e.target.value)}
                         className="bg-slate-700 border-slate-600 text-white min-h-[100px]"
-                        placeholder="Exemplo: A chegada da contabilidade online nos forçou a criar e vender serviços de maior valor, como o BPO."
                         required
                       />
                     </div>
@@ -377,17 +429,15 @@ export default function DiagnosticoContabilidade() {
                     </h3>
 
                     <div className="space-y-2">
-                      <Label htmlFor="objetivosComerciais" className="text-gray-300">
-                        Quais são seus 3 principais objetivos comerciais?
+                      <Label className="text-gray-300">
+                        Quais são seus principais objetivos de curto prazo? (Selecione as opções que se aplicam ao seu momento atual)
                       </Label>
-                      <Textarea
-                        id="objetivosComerciais"
-                        value={formData.objetivosComerciais}
-                        onChange={(e) => handleInputChange("objetivosComerciais", e.target.value)}
-                        className="bg-slate-700 border-slate-600 text-white min-h-[100px]"
-                        placeholder="Exemplo: 1. Aumentar o ticket médio em 20%; 2. Conquistar 15 novos clientes no nicho de clínicas; 3. Deixar de depender só de indicação."
-                        required
-                      />
+                      {["Aumentar o ticket médio", "Conquistar mais clientes (Ex: +15 novos clientes)", "Deixar de depender somente de indicações", "Estruturar um processo de vendas previsível", "Aumentar a margem de lucro"].map((option) => (
+                        <div key={option} className="flex items-center gap-2">
+                          <Checkbox id={`objetivo-${option}`} checked={formData.objetivosComerciais.includes(option)} onCheckedChange={(checked) => handleCheckboxChange("objetivosComerciais", option, checked === true)} className="border-gray-400 data-[state=checked]:bg-yellow-500 data-[state=checked]:text-slate-900" />
+                          <Label htmlFor={`objetivo-${option}`} className="cursor-pointer text-gray-300">{option}</Label>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
@@ -395,17 +445,15 @@ export default function DiagnosticoContabilidade() {
                     <h3 className="text-xl font-semibold text-white">2.2. Indicadores de Desempenho (KPIs)</h3>
 
                     <div className="space-y-2">
-                      <Label htmlFor="indicadoresDesempenho" className="text-gray-300">
-                        Quais números você acompanha para medir o sucesso comercial?
+                      <Label className="text-gray-300">
+                        Quais os números/indicadores você acompanha hoje para medir o comercial? (Selecione as opções)
                       </Label>
-                      <Textarea
-                        id="indicadoresDesempenho"
-                        value={formData.indicadoresDesempenho}
-                        onChange={(e) => handleInputChange("indicadoresDesempenho", e.target.value)}
-                        className="bg-slate-700 border-slate-600 text-white min-h-[100px]"
-                        placeholder='Exemplo: "Nº de propostas enviadas por mês", "Taxa de conversão de indicação" e "Aumento do Faturamento Mensal (MRR)."'
-                        required
-                      />
+                      {["Número de propostas enviadas por mês", "Taxa de conversão de indicações", "Aumento de faturamento mensal", "Ticket Médio", "Não acompanho nenhum indicador atualmente"].map((option) => (
+                        <div key={option} className="flex items-center gap-2">
+                          <Checkbox id={`indicador-${option}`} checked={formData.indicadoresDesempenho.includes(option)} onCheckedChange={(checked) => handleCheckboxChange("indicadoresDesempenho", option, checked === true)} className="border-gray-400 data-[state=checked]:bg-yellow-500 data-[state=checked]:text-slate-900" />
+                          <Label htmlFor={`indicador-${option}`} className="cursor-pointer text-gray-300">{option}</Label>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
@@ -416,12 +464,12 @@ export default function DiagnosticoContabilidade() {
                       <Label htmlFor="diferenciacaoMercado" className="text-gray-300">
                         Por que um cliente deveria escolher seu escritório e não um mais barato?
                       </Label>
+                      <p className="text-sm text-gray-400">Ex: Pelas nossas reuniões trimestrais de análise de resultados, que ajudam o cliente a tomar decisões.</p>
                       <Textarea
                         id="diferenciacaoMercado"
                         value={formData.diferenciacaoMercado}
                         onChange={(e) => handleInputChange("diferenciacaoMercado", e.target.value)}
                         className="bg-slate-700 border-slate-600 text-white min-h-[100px]"
-                        placeholder="Exemplo: Pelas nossas reuniões trimestrais de análise de resultados, que ajudam o cliente a tomar decisões."
                         required
                       />
                     </div>
@@ -438,18 +486,16 @@ export default function DiagnosticoContabilidade() {
 
                   <div className="space-y-4">
                     <h3 className="text-xl font-semibold text-white">3.1. Perfil do Cliente Ideal</h3>
-                    <p className="text-gray-400">Descreva a empresa-cliente ideal para seu escritório:</p>
-
                     <div className="space-y-2">
                       <Label htmlFor="segmentoNicho" className="text-gray-300">
-                        Segmento/Nicho:
+                        Descreva os segmentos de atuação (nichos) que a sua contabilidade atende hoje. Além disso, quais segmentos a sua contabilidade gostaria de atender, porém ainda não atende nenhum, e por qual motivo?
                       </Label>
-                      <Input
+                      <p className="text-sm text-gray-400">Ex: Hoje atendo comércio em geral. Gostaria de atender clínicas médicas porque o ticket é maior, mas não sei como prospectar esse público.</p>
+                      <Textarea
                         id="segmentoNicho"
                         value={formData.segmentoNicho}
                         onChange={(e) => handleInputChange("segmentoNicho", e.target.value)}
-                        className="bg-slate-700 border-slate-600 text-white"
-                        placeholder="Ex: Prestadores de serviço de TI, Clínicas médicas, E-commerces"
+                        className="bg-slate-700 border-slate-600 text-white min-h-[120px]"
                         required
                       />
                     </div>
@@ -458,12 +504,12 @@ export default function DiagnosticoContabilidade() {
                       <Label htmlFor="porteRegime" className="text-gray-300">
                         Porte e Regime:
                       </Label>
+                      <p className="text-sm text-gray-400">Ex: Simples Nacional, faturando acima de R$ 80 mil/mês</p>
                       <Input
                         id="porteRegime"
                         value={formData.porteRegime}
                         onChange={(e) => handleInputChange("porteRegime", e.target.value)}
                         className="bg-slate-700 border-slate-600 text-white"
-                        placeholder="Ex: Simples Nacional, faturando acima de R$ 80 mil/mês"
                         required
                       />
                     </div>
@@ -472,12 +518,12 @@ export default function DiagnosticoContabilidade() {
                       <Label htmlFor="principalDor" className="text-gray-300">
                         Principal "Dor" que vocês resolvem:
                       </Label>
+                      <p className="text-sm text-gray-400">Ex: Dono perdido no financeiro, paga mais impostos do que deveria, falta de organização para crescer</p>
                       <Textarea
                         id="principalDor"
                         value={formData.principalDor}
                         onChange={(e) => handleInputChange("principalDor", e.target.value)}
                         className="bg-slate-700 border-slate-600 text-white min-h-[80px]"
-                        placeholder="Ex: Dono perdido no financeiro, Paga mais impostos do que deveria, Falta de organização para crescer"
                         required
                       />
                     </div>
@@ -496,17 +542,15 @@ export default function DiagnosticoContabilidade() {
                     <h3 className="text-xl font-semibold text-white">4.1. Canais de Aquisição de Clientes</h3>
 
                     <div className="space-y-2">
-                      <Label htmlFor="canaisAquisicao" className="text-gray-300">
-                        De onde vem a maioria dos seus novos clientes?
+                      <Label className="text-gray-300">
+                        De onde vem a maioria dos seus clientes hoje? (Selecione as opções)
                       </Label>
-                      <Textarea
-                        id="canaisAquisicao"
-                        value={formData.canaisAquisicao}
-                        onChange={(e) => handleInputChange("canaisAquisicao", e.target.value)}
-                        className="bg-slate-700 border-slate-600 text-white min-h-[80px]"
-                        placeholder="Exemplo: 90% de indicação de clientes e parceiros (advogados, consultores)."
-                        required
-                      />
+                      {["Indicação de clientes parceiros", "Redes Sociais (Instagram, LinkedIn, etc.)", "Pesquisa orgânica no Google", "Prospecção Ativa (Cold Call, Abordagem direta no WhatsApp, etc.)", "Eventos e Parcerias"].map((option) => (
+                        <div key={option} className="flex items-center gap-2">
+                          <Checkbox id={`canal-${option}`} checked={formData.canaisAquisicao.includes(option)} onCheckedChange={(checked) => handleCheckboxChange("canaisAquisicao", option, checked === true)} className="border-gray-400 data-[state=checked]:bg-yellow-500 data-[state=checked]:text-slate-900" />
+                          <Label htmlFor={`canal-${option}`} className="cursor-pointer text-gray-300">{option}</Label>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
@@ -515,14 +559,14 @@ export default function DiagnosticoContabilidade() {
 
                     <div className="space-y-2">
                       <Label htmlFor="jornadaVenda" className="text-gray-300">
-                        Descreva as etapas, do contato inicial ao contrato assinado.
+                        Você tem uma jornada de venda estruturada? Descreva abaixo, passo a passo, o caminho que o cliente faz desde quando entra em contato (através dos canais que você marcou acima) até finalizar uma venda.
                       </Label>
+                      <p className="text-sm text-gray-400">Ex: 1. Cliente chama no WhatsApp &gt; 2. Faço perguntas de qualificação &gt; 3. Agendo uma reunião de apresentação &gt; 4. Envio a proposta &gt; 5. Faço follow-up.</p>
                       <Textarea
                         id="jornadaVenda"
                         value={formData.jornadaVenda}
                         onChange={(e) => handleInputChange("jornadaVenda", e.target.value)}
                         className="bg-slate-700 border-slate-600 text-white min-h-[100px]"
-                        placeholder="Exemplo: 1. O indicado me liga. 2. Faço uma reunião. 3. Envio a proposta por e-mail. 4. Cobro uma ou duas vezes."
                         required
                       />
                     </div>
@@ -535,12 +579,12 @@ export default function DiagnosticoContabilidade() {
                       <Label htmlFor="responsavelVenda" className="text-gray-300">
                         Quem é o responsável por vender no escritório hoje?
                       </Label>
+                      <p className="text-sm text-gray-400">Ex: Eu, o sócio-contador. Faço tudo, da prospecção ao fechamento.</p>
                       <Textarea
                         id="responsavelVenda"
                         value={formData.responsavelVenda}
                         onChange={(e) => handleInputChange("responsavelVenda", e.target.value)}
                         className="bg-slate-700 border-slate-600 text-white min-h-[80px]"
-                        placeholder="Exemplo: Eu, o sócio-contador. Faço tudo, da prospecção ao fechamento."
                         required
                       />
                     </div>
@@ -553,12 +597,12 @@ export default function DiagnosticoContabilidade() {
                       <Label htmlFor="estiloLideranca" className="text-gray-300">
                         Como você gerencia e motiva a área comercial (mesmo que seja só você)?
                       </Label>
+                      <p className="text-sm text-gray-400">Ex: Não temos um processo formal de metas ou comissão. A motivação é o crescimento do negócio.</p>
                       <Textarea
                         id="estiloLideranca"
                         value={formData.estiloLideranca}
                         onChange={(e) => handleInputChange("estiloLideranca", e.target.value)}
                         className="bg-slate-700 border-slate-600 text-white min-h-[80px]"
-                        placeholder="Exemplo: Não temos um processo formal de metas ou comissão. A motivação é o crescimento do negócio."
                         required
                       />
                     </div>
@@ -577,17 +621,15 @@ export default function DiagnosticoContabilidade() {
                     <h3 className="text-xl font-semibold text-white">5.1. Principais Gargalos e Dores Comerciais</h3>
 
                     <div className="space-y-2">
-                      <Label htmlFor="gargalosDesafios" className="text-gray-300">
-                        Qual é sua maior frustração ou desafio ao vender?
+                      <Label className="text-gray-300">
+                        Qual é a sua maior frustração e desafio ao tentar vender seus serviços hoje? (Selecione as opções)
                       </Label>
-                      <Textarea
-                        id="gargalosDesafios"
-                        value={formData.gargalosDesafios}
-                        onChange={(e) => handleInputChange("gargalosDesafios", e.target.value)}
-                        className="bg-slate-700 border-slate-600 text-white min-h-[100px]"
-                        placeholder="Exemplo: Não ter tempo para vender de forma estratégica ou Dificuldade de mostrar o valor de serviços consultivos."
-                        required
-                      />
+                      {["Não ter tempo para vender de forma estratégica", "Dificuldade de mostrar valor no serviço (cliente só olha preço)", "Dificuldade em criar pacotes de serviços atrativos", "Não tenho um processo de vendas organizado"].map((option) => (
+                        <div key={option} className="flex items-center gap-2">
+                          <Checkbox id={`gargalo-${option}`} checked={formData.gargalosDesafios.includes(option)} onCheckedChange={(checked) => handleCheckboxChange("gargalosDesafios", option, checked === true)} className="border-gray-400 data-[state=checked]:bg-yellow-500 data-[state=checked]:text-slate-900" />
+                          <Label htmlFor={`gargalo-${option}`} className="cursor-pointer text-gray-300">{option}</Label>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
@@ -598,12 +640,12 @@ export default function DiagnosticoContabilidade() {
                       <Label htmlFor="concorrentes" className="text-gray-300">
                         Quem são seus 2 principais tipos de concorrentes?
                       </Label>
+                      <p className="text-sm text-gray-400">Ex: 1. As contabilidades online de massa (como Contabilizei). 2. O contador tradicional do bairro.</p>
                       <Textarea
                         id="concorrentes"
                         value={formData.concorrentes}
                         onChange={(e) => handleInputChange("concorrentes", e.target.value)}
                         className="bg-slate-700 border-slate-600 text-white min-h-[80px]"
-                        placeholder="Exemplo: 1. As contabilidades online de massa (ex: Contabilizei). 2. O contador tradicional do bairro."
                         required
                       />
                     </div>
@@ -616,12 +658,12 @@ export default function DiagnosticoContabilidade() {
                       <Label htmlFor="visaoFuturo" className="text-gray-300">
                         Qual seu grande sonho ou oportunidade para o escritório em 3 anos?
                       </Label>
+                      <p className="text-sm text-gray-400">Ex: Virar uma boutique de serviços financeiros, reconhecida como especialista em um nicho e poder escolher clientes.</p>
                       <Textarea
                         id="visaoFuturo"
                         value={formData.visaoFuturo}
                         onChange={(e) => handleInputChange("visaoFuturo", e.target.value)}
                         className="bg-slate-700 border-slate-600 text-white min-h-[100px]"
-                        placeholder="Exemplo: Virar uma boutique de serviços financeiros, reconhecida como especialista em um nicho e poder escolher clientes."
                         required
                       />
                     </div>
@@ -641,14 +683,14 @@ export default function DiagnosticoContabilidade() {
 
                     <div className="space-y-2">
                       <Label htmlFor="ferramentasUtilizadas" className="text-gray-300">
-                        Quais sistemas e ferramentas são essenciais para sua operação?
+                        Vocês utilizam alguma ferramenta de CRM? Como vocês organizam e controlam os clientes que entram em contato e estão em alguma tratativa comercial para contratar o serviço de vocês?
                       </Label>
+                      <p className="text-sm text-gray-400">Ex: Uso um sistema CRM específico, uso planilha de Excel, organizo pelas etiquetas do WhatsApp, anoto no caderno, etc.</p>
                       <Textarea
                         id="ferramentasUtilizadas"
                         value={formData.ferramentasUtilizadas}
                         onChange={(e) => handleInputChange("ferramentasUtilizadas", e.target.value)}
                         className="bg-slate-700 border-slate-600 text-white min-h-[100px]"
-                        placeholder="Exemplo: Sistema Domínio, G-Click, Asaas e planilhas de Excel para o CRM."
                         required
                       />
                     </div>
@@ -687,10 +729,22 @@ export default function DiagnosticoContabilidade() {
                           value={formData.qualCRM}
                           onChange={(e) => handleInputChange("qualCRM", e.target.value)}
                           className="bg-slate-700 border-slate-600 text-white"
-                          placeholder="Ex: RD Station, HubSpot, Pipedrive"
                         />
                       </div>
                     )}
+                  </div>
+
+                  <div className="space-y-4">
+                    <h3 className="text-xl font-semibold text-white">6.2. Campanhas Pagas</h3>
+                    <div className="space-y-2">
+                      <Label className="text-gray-300">Você faz algum tipo de campanha paga de aquisição? Se sim, quais? (Selecione as opções)</Label>
+                      {["Meta Ads (Anúncios Profissionais no Gerenciador do Facebook/Instagram)", "Google Ads (Anúncios na rede de pesquisa)", "Turbinar publicações direto no Instagram / Facebook", "Turbinar diretamente no WhatsApp", "Pego lista de contatos/leads para ligar um a um ou mandar WhatsApp", "Não faço nenhum tipo de campanha paga"].map((option) => (
+                        <div key={option} className="flex items-center gap-2">
+                          <Checkbox id={`campanha-${option}`} checked={formData.campanhasPagas.includes(option)} onCheckedChange={(checked) => handleCheckboxChange("campanhasPagas", option, checked === true)} className="border-gray-400 data-[state=checked]:bg-yellow-500 data-[state=checked]:text-slate-900" />
+                          <Label htmlFor={`campanha-${option}`} className="cursor-pointer text-gray-300">{option}</Label>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
