@@ -14,6 +14,16 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { CheckCircle2 } from "lucide-react"
+import { FormWizard } from "@/components/form-wizard"
+
+const wizardSteps = [
+  "Identidade e Raízes do Escritório",
+  "Estratégia, Objetivos e Métricas",
+  "O Cliente Ideal",
+  "A Máquina de Vendas",
+  "Desafios, Concorrência e Oportunidades",
+  "Tecnologia e Ferramentas",
+]
 
 export default function DiagnosticoContabilidade() {
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -96,7 +106,7 @@ export default function DiagnosticoContabilidade() {
     setIsSubmitting(true)
 
     try {
-      const response = await fetch("https://eazytech-n8n.gsl3ku.easypanel.host/webhook/contabilidade", {
+      const response = await fetch("/api/form-submissions/contabilidade", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -180,6 +190,7 @@ export default function DiagnosticoContabilidade() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-8">
+                <FormWizard steps={wizardSteps} submitLabel="Enviar Formulário" isSubmitting={isSubmitting}>
                 {/* Seção 1: Identidade e Raízes do Escritório */}
                 <div className="space-y-6">
                   <div className="border-b border-yellow-600 pb-2">
@@ -748,15 +759,7 @@ export default function DiagnosticoContabilidade() {
                   </div>
                 </div>
 
-                <div className="flex justify-center pt-6">
-                  <Button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="bg-green-600 hover:bg-green-700 text-white px-12 py-6 text-lg"
-                  >
-                    {isSubmitting ? "Enviando..." : "Enviar Formulário"}
-                  </Button>
-                </div>
+                </FormWizard>
               </form>
             </CardContent>
           </Card>

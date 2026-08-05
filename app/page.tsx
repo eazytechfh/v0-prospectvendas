@@ -13,6 +13,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { CheckCircle2 } from "lucide-react"
+import { FormWizard } from "@/components/form-wizard"
 
 type FieldProps = {
   id: string
@@ -51,6 +52,16 @@ const canaisOptions = [
   "Outros",
 ]
 
+const wizardSteps = [
+  "Informações Básicas e Raio-X do Negócio",
+  "Visão Estratégica e Objetivos",
+  "Mercado e Posicionamento",
+  "Processo de Aquisição e Venda",
+  "Equipe Comercial e Gestão",
+  "Tecnologia e Ferramentas",
+  "Desafios e Obstáculos",
+]
+
 export default function ProspectForms() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showSuccessDialog, setShowSuccessDialog] = useState(false)
@@ -76,7 +87,7 @@ export default function ProspectForms() {
     data.canaisAquisicao = canaisAquisicao
 
     try {
-      const response = await fetch("https://eazytech-n8n.gsl3ku.easypanel.host/webhook/cc42a81b-dde0-4c76-8147-6545ab18c8e1", {
+      const response = await fetch("/api/form-submissions/servicos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -125,6 +136,7 @@ export default function ProspectForms() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-8" autoComplete="off">
+                <FormWizard steps={wizardSteps} submitLabel="Enviar Formulário" isSubmitting={isSubmitting}>
                 <section className="space-y-4 rounded-lg bg-slate-700 p-6">
                   <h2 className="mb-4 text-xl font-semibold text-yellow-400">Informações Básicas e Raio-X do Negócio</h2>
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -221,8 +233,7 @@ export default function ProspectForms() {
                   <LongField id="maiorGargalo" label="6.1. Qual é o maior gargalo (dificuldade) do comercial hoje que impede vocês de crescerem mais rápido?" example="Ex: Nossa maior dificuldade é atrair clientes qualificados, só chega gente pedindo desconto e sem dinheiro." />
                   <LongField id="preocupacaoVendas" label="6.2. O que tem tirado o seu sono ultimamente em relação às vendas da empresa?" example="Ex: A dependência exclusiva de indicações; se não nos indicarem ninguém, nós não batemos a meta naquele mês." />
                 </section>
-
-                <Button type="submit" disabled={isSubmitting} className="w-full bg-yellow-600 py-3 text-lg font-semibold text-black hover:bg-yellow-700">{isSubmitting ? "Enviando..." : "Enviar Formulário"}</Button>
+                </FormWizard>
               </form>
             </CardContent>
           </Card>
