@@ -3,7 +3,6 @@
 import type React from "react"
 
 import { useState } from "react"
-import Image from "next/image"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -15,6 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { CheckCircle2 } from "lucide-react"
 import { FormWizard } from "@/components/form-wizard"
+import { ProspectLogo } from "@/components/prospect-logo"
 
 const wizardSteps = [
   "Identidade e Raízes do Escritório",
@@ -130,14 +130,7 @@ export default function DiagnosticoContabilidade() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       {/* Header */}
       <header className="flex h-20 w-full items-center justify-between px-4 md:px-6">
-        <a
-          href="https://www.prospectvendas.com.br"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center"
-        >
-          <Image src="/logo.webp" alt="Prospect Vendas" width={200} height={60} className="h-12 w-auto" />
-        </a>
+        <ProspectLogo />
       </header>
 
       <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>

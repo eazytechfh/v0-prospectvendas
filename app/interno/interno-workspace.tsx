@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { createBrowserClient } from "@supabase/ssr"
-import Image from "next/image"
 import {
   ArrowRight,
   Bell,
@@ -17,6 +16,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { ProspectLogo } from "@/components/prospect-logo"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import type { FormSubmission } from "@/lib/form-submissions"
@@ -485,9 +485,7 @@ export function InternoWorkspace({
     <main className="min-h-screen bg-slate-950 text-slate-100">
       <div className="border-b border-slate-800 bg-slate-950/95">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-5 py-5 lg:px-8">
-          <a href="https://www.prospectvendas.com.br" target="_blank" rel="noopener noreferrer" className="flex items-center">
-            <Image src="/logo.webp" alt="Prospect Vendas" width={200} height={60} className="h-12 w-auto" />
-          </a>
+          <ProspectLogo />
 
           <Popover>
             <PopoverTrigger asChild>

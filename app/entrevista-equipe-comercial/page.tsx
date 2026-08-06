@@ -1,11 +1,11 @@
 "use client"
 
 import { useRef, useState } from "react"
-import Image from "next/image"
 import { CheckCircle2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { FormWizard } from "@/components/form-wizard"
+import { ProspectLogo } from "@/components/prospect-logo"
 import { InterviewSectionBlock, scale10, scale5, yesNoSometimes, type InterviewField, type InterviewSection } from "@/components/interview-form-fields"
 
 const textarea = (name: string, question: string): InterviewField => ({ name, question, kind: "textarea" })
@@ -216,7 +216,7 @@ export default function EntrevistaEquipeComercialPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      <header className="flex h-20 items-center px-4 md:px-6"><a href="https://www.prospectvendas.com.br" target="_blank" rel="noopener noreferrer"><Image src="/logo.webp" alt="Prospect Vendas" width={200} height={60} className="h-12 w-auto" /></a></header>
+      <header className="flex h-20 items-center px-4 md:px-6"><ProspectLogo /></header>
       <Dialog open={showSuccess} onOpenChange={setShowSuccess}><DialogContent className="border-slate-700 bg-slate-800 text-white"><DialogHeader><DialogTitle className="flex items-center gap-3 text-2xl text-green-400"><CheckCircle2 className="h-8 w-8" />Entrevistas enviadas!</DialogTitle><DialogDescription className="pt-4 text-gray-300">{submittedCount} {submittedCount === 1 ? "registro foi coletado" : "registros foram coletados"} com sucesso.</DialogDescription></DialogHeader></DialogContent></Dialog>
       <main className="container mx-auto px-4 py-12">
         <div className="mb-12 text-center"><h1 className="mb-4 text-4xl font-bold text-white md:text-5xl">Entrevista Equipe Comercial</h1><p className="text-xl text-gray-300">Informações sobre os membros da equipe comercial</p></div>

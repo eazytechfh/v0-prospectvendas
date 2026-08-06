@@ -3,7 +3,6 @@
 import type React from "react"
 
 import { useState } from "react"
-import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -14,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { CheckCircle2 } from "lucide-react"
 import { FormWizard } from "@/components/form-wizard"
+import { ProspectLogo } from "@/components/prospect-logo"
 
 type FieldProps = {
   id: string
@@ -105,9 +105,7 @@ export default function ProspectForms() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <header className="flex h-20 w-full items-center justify-between px-4 md:px-6">
-        <a href="https://www.prospectvendas.com.br" target="_blank" rel="noopener noreferrer" className="flex items-center">
-          <Image src="/logo.webp" alt="Prospect Vendas" width={200} height={60} className="h-12 w-auto" />
-        </a>
+        <ProspectLogo />
       </header>
 
       <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
@@ -131,8 +129,8 @@ export default function ProspectForms() {
         <div className="mx-auto max-w-4xl">
           <Card className="border-slate-700 bg-slate-800">
             <CardHeader>
-              <CardTitle className="text-2xl text-white">Briefing de Diagnóstico Comercial: Entrevista com a Diretoria</CardTitle>
-              <CardDescription className="text-gray-300">Avaliação estratégica e operacional da empresa</CardDescription>
+              <CardTitle className="text-2xl text-white">APC Serviços</CardTitle>
+              <CardDescription className="text-gray-300">Briefing comercial para diagnóstico e oportunidades de melhoria</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-8" autoComplete="off">

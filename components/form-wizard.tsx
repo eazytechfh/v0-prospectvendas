@@ -28,17 +28,85 @@ export function FormWizard({
   finalMessage?: React.ReactNode
 }) {
   const [currentStep, setCurrentStep] = useState(0)
+  const [validatedSteps, setValidatedSteps] = useState<Set<number>>(() => new Set())
+  const [invalidSteps, setInvalidSteps] = useState<Set<number>>(() => new Set())
+  const [attemptedSteps, setAttemptedSteps] = useState<Set<number>>(() => new Set())
   const containerRef = useRef<HTMLDivElement>(null)
   const contents = Children.toArray(children)
   const lastStep = steps.length - 1
 
   useEffect(() => {
     setCurrentStep(0)
+    setValidatedSteps(new Set())
+    setInvalidSteps(new Set())
+    setAttemptedSteps(new Set())
   }, [resetKey])
 
   const goToStep = (step: number) => {
     setCurrentStep(step)
     window.scrollTo({ top: 0, behavior: "smooth" })
+  }
+
+  const getStepElement = (step: number) =>
+    containerRef.current?.querySelector<HTMLElement>(`[data-wizard-step="${step}"]`)
+
+  const getInvalidField = (step: number) =>
+    getStepElement(step)?.querySelector<HTMLElement>("input:invalid, select:invalid, textarea:invalid")
+
+  const validateStep = (step: number) => {
+    setAttemptedSteps((previous) => new Set(previous).add(step))
+
+    const invalidField = getInvalidField(step)
+    if (invalidField) {
+      setInvalidSteps((previous) => new Set(previous).add(step))
+      setValidatedSteps((previous) => {
+        const next = new Set(previous)
+        for (const validatedStep of next) {
+          if (validatedStep >= step) next.delete(validatedStep)
+        }
+        return next
+      })
+      window.requestAnimationFrame(() => {
+        invalidField.focus()
+        if ("reportValidity" in invalidField) {
+          ;(invalidField as HTMLInputElement).reportValidity()
+        }
+      })
+      return false
+    }
+
+    setInvalidSteps((previous) => {
+      const next = new Set(previous)
+      next.delete(step)
+      return next
+    })
+    setValidatedSteps((previous) => new Set(previous).add(step))
+    return true
+  }
+
+  const advanceToStep = (targetStep: number) => {
+    if (!validateStep(currentStep)) return
+
+    const firstUnvalidatedStep = Array.from({ length: targetStep }, (_, index) => index)
+      .find((step) => step !== currentStep && !validatedSteps.has(step))
+
+    goToStep(firstUnvalidatedStep ?? targetStep)
+  }
+
+  const handleFieldChange = () => {
+    if (!attemptedSteps.has(currentStep)) return
+
+    const hasInvalidField = Boolean(getInvalidField(currentStep))
+    setInvalidSteps((previous) => {
+      const next = new Set(previous)
+      if (hasInvalidField) next.add(currentStep)
+      else next.delete(currentStep)
+      return next
+    })
+
+    if (!hasInvalidField) {
+      setValidatedSteps((previous) => new Set(previous).add(currentStep))
+    }
   }
 
   const afterValidation = (action: (form: HTMLFormElement) => void) => {
@@ -49,8 +117,15 @@ export function FormWizard({
       const invalidField = form.querySelector<HTMLElement>(":invalid")
       const invalidStep = invalidField?.closest<HTMLElement>("[data-wizard-step]")
       const stepIndex = Number(invalidStep?.dataset.wizardStep ?? 0)
+      setAttemptedSteps((previous) => new Set(previous).add(stepIndex))
+      setInvalidSteps((previous) => new Set(previous).add(stepIndex))
       setCurrentStep(stepIndex)
-      window.requestAnimationFrame(() => invalidField?.focus())
+      window.requestAnimationFrame(() => {
+        invalidField?.focus()
+        if (invalidField && "reportValidity" in invalidField) {
+          ;(invalidField as HTMLInputElement).reportValidity()
+        }
+      })
       return
     }
 
@@ -58,7 +133,7 @@ export function FormWizard({
   }
 
   return (
-    <div ref={containerRef} className="space-y-6">
+    <div ref={containerRef} className="space-y-6" onInput={handleFieldChange} onChange={handleFieldChange}>
       <div className="rounded-2xl border border-slate-700 bg-slate-900/50 p-4">
         <div className="mb-2 flex items-center justify-between text-sm">
           <span className="font-medium text-yellow-400">Progresso {currentStep + 1}/{steps.length}</span>
@@ -75,7 +150,7 @@ export function FormWizard({
             <button
               key={step}
               type="button"
-              onClick={() => goToStep(index)}
+              onClick={() => index <= currentStep ? goToStep(index) : advanceToStep(index)}
               className={cn(
                 "flex items-center gap-3 rounded-xl border px-3 py-3 text-left text-sm transition-colors",
                 index === currentStep
@@ -93,10 +168,26 @@ export function FormWizard({
 
         <div className="min-w-0">
           {contents.map((content, index) => (
-            <div key={index} data-wizard-step={index} className={index === currentStep ? "block" : "hidden"}>
+            <div
+              key={index}
+              data-wizard-step={index}
+              data-validation-attempted={attemptedSteps.has(index)}
+              className={cn(
+                index === currentStep ? "block" : "hidden",
+                "[&[data-validation-attempted=true]_input:invalid]:border-red-500 [&[data-validation-attempted=true]_input:invalid]:ring-1 [&[data-validation-attempted=true]_input:invalid]:ring-red-500/40",
+                "[&[data-validation-attempted=true]_select:invalid]:border-red-500 [&[data-validation-attempted=true]_select:invalid]:ring-1 [&[data-validation-attempted=true]_select:invalid]:ring-red-500/40",
+                "[&[data-validation-attempted=true]_textarea:invalid]:border-red-500 [&[data-validation-attempted=true]_textarea:invalid]:ring-1 [&[data-validation-attempted=true]_textarea:invalid]:ring-red-500/40",
+              )}
+            >
               {content}
             </div>
           ))}
+
+          {invalidSteps.has(currentStep) && (
+            <p role="alert" className="mt-4 rounded-lg border border-red-900/70 bg-red-950/40 px-4 py-3 text-sm text-red-300">
+              Preencha os campos obrigatórios destacados antes de avançar.
+            </p>
+          )}
 
           {currentStep === lastStep && finalMessage}
 
@@ -105,7 +196,7 @@ export function FormWizard({
               <ArrowLeft className="h-4 w-4" />Voltar
             </Button>
             {currentStep < lastStep ? (
-              <Button type="button" onClick={() => goToStep(currentStep + 1)} className="gap-2 bg-yellow-600 font-semibold text-black hover:bg-yellow-700">
+              <Button type="button" onClick={() => advanceToStep(currentStep + 1)} className="gap-2 bg-yellow-600 font-semibold text-black hover:bg-yellow-700">
                 Avançar<ArrowRight className="h-4 w-4" />
               </Button>
             ) : (
