@@ -189,7 +189,7 @@ function SubmissionDetail({
                       Baixar PDF
                     </a>
                   </Button>
-                  {submission.form_type === "apc_servicos" && (
+                  {(submission.form_type === "apc_servicos" || submission.form_type === "apc_contabilidade") && (
                     submission.plano_apc_generated_at ? (
                       <Button asChild className="gap-2 bg-emerald-500 text-slate-950 hover:bg-emerald-400">
                         <a href={`/api/plano-apc/${submission.id}/pdf`} download>

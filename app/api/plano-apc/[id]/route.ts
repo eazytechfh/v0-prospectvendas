@@ -18,9 +18,9 @@ export async function POST(
       return NextResponse.json({ error: "Formulário não encontrado." }, { status: 404 })
     }
 
-    if (submission.form_type !== "apc_servicos") {
+    if (submission.form_type !== "apc_servicos" && submission.form_type !== "apc_contabilidade") {
       return NextResponse.json(
-        { error: "O Plano APC só pode ser gerado a partir de um formulário do APC Serviços." },
+        { error: "O Plano APC só pode ser gerado a partir de um formulário do APC Serviços ou do APC Contabilidade." },
         { status: 400 },
       )
     }

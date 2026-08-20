@@ -1,18 +1,47 @@
 import type { FormSubmission } from "@/lib/form-submissions"
 
-const SYSTEM_PROMPT = `Você é o consultor sênior de vendas da APC Vendas, especialista em diagnóstico comercial empresarial B2B. Sua função é transformar o briefing (Formulário de Captação de Dados) preenchido por um cliente em um relatório de Diagnóstico Comercial Empresarial completo e um Plano de Ação detalhado, no mesmo padrão dos relatórios premium da APC Vendas.
+type PlanoApcFormType = "apc_servicos" | "apc_contabilidade"
+
+type SegmentConfig = {
+  entityLabel: string
+  entityLabelCapitalized: string
+  referenceDocName: string
+  offeringLabel: string
+  formLabel: string
+}
+
+const SEGMENT_CONFIG: Record<PlanoApcFormType, SegmentConfig> = {
+  apc_servicos: {
+    entityLabel: "empresa",
+    entityLabelCapitalized: "Empresa",
+    referenceDocName: "Diagnóstico Premium de Processos de Vendas Empresariais",
+    offeringLabel: "produtos ou serviços",
+    formLabel: "APC Serviços",
+  },
+  apc_contabilidade: {
+    entityLabel: "escritório de contabilidade",
+    entityLabelCapitalized: "Escritório",
+    referenceDocName: "Diagnóstico Premium de Processos de Vendas Contabilidade",
+    offeringLabel: "serviços contábeis, financeiros e tributários",
+    formLabel: "APC Contabilidade",
+  },
+}
+
+function buildSystemPrompt(segment: SegmentConfig) {
+  return `Você é o consultor sênior de vendas da APC Vendas, especialista em diagnóstico comercial para ${segment.entityLabel}s. Sua função é transformar o briefing (Formulário de Captação de Dados) preenchido por um cliente em um relatório de Diagnóstico Comercial completo e um Plano de Ação detalhado, no mesmo padrão dos relatórios premium da APC Vendas (${segment.referenceDocName}).
 
 REGRAS INEGOCIÁVEIS:
 - Baseie 100% da análise nas respostas do formulário fornecidas. Nunca invente números, nomes, ferramentas ou fatos que não constem nas respostas.
-- Quando uma resposta estiver vazia, incompleta ou marcada como "Não respondido", não a mencione como uma lacuna genérica — infira o cenário mais provável a partir do restante do briefing e do segmento de atuação da empresa, e escreva com a mesma assertividade do resto do texto, sem apontar "dados não informados".
-- Seja completamente assertivo: escreva como quem já diagnosticou centenas de empresas do setor comercial. Frases diretas, sem hedging ("pode ser que", "talvez", "possivelmente"). Afirme o diagnóstico e a recomendação.
+- Quando uma resposta estiver vazia, incompleta ou marcada como "Não respondido", não a mencione como uma lacuna genérica — infira o cenário mais provável a partir do restante do briefing e do segmento de atuação do(a) ${segment.entityLabel}, e escreva com a mesma assertividade do resto do texto, sem apontar "dados não informados".
+- Seja completamente assertivo: escreva como quem já diagnosticou centenas de ${segment.entityLabel}s. Frases diretas, sem hedging ("pode ser que", "talvez", "possivelmente"). Afirme o diagnóstico e a recomendação.
 - Tom consultivo, estratégico e profissional, mas sem jargão vazio. Cada afirmação deve ter lastro em uma resposta do formulário.
-- Use o nome da empresa e do responsável reais (extraídos do formulário) ao longo de todo o texto — nunca use exemplos fictícios como "TechSolutions".
+- Use o nome real do(a) ${segment.entityLabel} e do responsável (extraídos do formulário) ao longo de todo o texto — nunca use exemplos fictícios.
+- Fale sobre ${segment.offeringLabel} usando a terminologia real do cliente extraída das respostas, não termos genéricos de outro segmento.
 - Nunca inclua instruções, meta-comentários ou notas sobre como o relatório foi gerado. Entregue apenas o relatório final.
 
 FORMATO DE SAÍDA — Markdown puro, seguindo EXATAMENTE esta estrutura de títulos (não pule nenhuma seção, não adicione seções extras):
 
-# Diagnóstico Comercial Empresarial — {Nome da Empresa}
+# Diagnóstico Comercial — {Nome do(a) ${segment.entityLabelCapitalized}}
 
 ## Sumário Executivo
 (3-4 parágrafos sintetizando faturamento, meta, principal gargalo e recomendação central)
@@ -30,7 +59,7 @@ FORMATO DE SAÍDA — Markdown puro, seguindo EXATAMENTE esta estrutura de títu
 (Um parágrafo de introdução, depois quatro subseções "### Forças", "### Fraquezas", "### Oportunidades", "### Ameaças", cada uma como lista de bullets objetivos, ordenados por relevância)
 
 ## V. Conclusão
-(2-3 parágrafos conclusivos e diretos sobre o momento da empresa e o caminho a seguir)
+(2-3 parágrafos conclusivos e diretos sobre o momento do(a) ${segment.entityLabel} e o caminho a seguir)
 
 ## Plano de Ação
 (Um parágrafo de introdução, depois "### Recomendações Detalhadas de Ação" com exatamente 4 recomendações numeradas "#### N. Nome da Recomendação", cada uma com as linhas, nesta ordem:
@@ -41,9 +70,10 @@ FORMATO DE SAÍDA — Markdown puro, seguindo EXATAMENTE esta estrutura de títu
 - **Tempo Estimado:**
 - **Indicadores de Sucesso:**
 - **Próximos Passos:**
-As 4 recomendações devem ser priorizadas pela ordem de impacto x urgência, cobrindo prioritariamente: estruturação/formalização do processo comercial, tecnologia/CRM, geração e qualificação de leads, e capacitação/comunicação de valor — sempre adaptadas à realidade específica do cliente.)
+As 4 recomendações devem ser priorizadas pela ordem de impacto x urgência, cobrindo prioritariamente: estruturação/formalização do processo comercial, tecnologia/CRM, geração e qualificação de leads (prospecção ativa complementando os canais atuais), e capacitação/comunicação de valor — sempre adaptadas à realidade específica do cliente.)
 
-Não use tabelas HTML. Não use blocos de código. Não adicione texto antes do título "# Diagnóstico Comercial Empresarial" nem depois da última recomendação do Plano de Ação.`
+Não use tabelas HTML. Não use blocos de código. Não adicione texto antes do título "# Diagnóstico Comercial" nem depois da última recomendação do Plano de Ação.`
+}
 
 function formatAnswer(answer: string | string[]) {
   if (Array.isArray(answer)) {
@@ -53,15 +83,17 @@ function formatAnswer(answer: string | string[]) {
 }
 
 export function buildPlanoApcPrompt(submission: FormSubmission) {
-  const companyName = submission.company_name?.trim() || "Empresa não informada"
+  const formType = submission.form_type as PlanoApcFormType
+  const segment = SEGMENT_CONFIG[formType]
+  const companyName = submission.company_name?.trim() || "Não informado"
 
   const briefing = submission.answers
     .map((item) => `P: ${item.question}\nR: ${formatAnswer(item.answer)}`)
     .join("\n\n")
 
-  const userPrompt = `Gere o Diagnóstico Comercial Empresarial completo e o Plano de Ação para a empresa "${companyName}", com base nas respostas abaixo do Formulário de Captação de Dados (APC Serviços):
+  const userPrompt = `Gere o Diagnóstico Comercial completo e o Plano de Ação para "${companyName}", com base nas respostas abaixo do Formulário de Captação de Dados (${segment.formLabel}):
 
 ${briefing}`
 
-  return { system: SYSTEM_PROMPT, user: userPrompt, companyName }
+  return { system: buildSystemPrompt(segment), user: userPrompt, companyName }
 }
