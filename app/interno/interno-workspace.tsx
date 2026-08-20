@@ -10,7 +10,9 @@ import {
   ClipboardList,
   Download,
   FileText,
+  Loader2,
   Search,
+  Sparkles,
   Trash2,
   Users,
 } from "lucide-react"
@@ -97,14 +99,46 @@ function SubmissionDetail({
   submission,
   onClose,
   onDelete,
+  onPlanoApcGenerated,
 }: {
   submission: FormSubmission | null
   onClose: () => void
   onDelete: (id: string) => Promise<void>
+  onPlanoApcGenerated: (id: string, generatedAt: string) => void
 }) {
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState("")
+  const [isGeneratingPlano, setIsGeneratingPlano] = useState(false)
+  const [planoError, setPlanoError] = useState("")
+
+  useEffect(() => {
+    setPlanoError("")
+    setIsGeneratingPlano(false)
+  }, [submission?.id])
+
+  const generatePlanoApc = async () => {
+    if (!submission || isGeneratingPlano) return
+
+    setIsGeneratingPlano(true)
+    setPlanoError("")
+
+    try {
+      const response = await fetch(`/api/plano-apc/${submission.id}`, { method: "POST" })
+      const data = (await response.json().catch(() => ({}))) as { error?: string; generatedAt?: string }
+
+      if (!response.ok) {
+        throw new Error(data.error || "Não foi possível gerar o Plano APC.")
+      }
+
+      onPlanoApcGenerated(submission.id, data.generatedAt ?? new Date().toISOString())
+    } catch (error) {
+      console.error("Falha ao gerar Plano APC:", error)
+      setPlanoError(error instanceof Error ? error.message : "Não foi possível gerar o Plano APC.")
+    } finally {
+      setIsGeneratingPlano(false)
+    }
+  }
 
   const closeDeleteConfirmation = () => {
     if (isDeleting) return
@@ -155,6 +189,35 @@ function SubmissionDetail({
                       Baixar PDF
                     </a>
                   </Button>
+                  {submission.form_type === "apc_servicos" && (
+                    submission.plano_apc_generated_at ? (
+                      <Button asChild className="gap-2 bg-emerald-500 text-slate-950 hover:bg-emerald-400">
+                        <a href={`/api/plano-apc/${submission.id}/pdf`} download>
+                          <Sparkles className="h-4 w-4" />
+                          Baixar Plano APC
+                        </a>
+                      </Button>
+                    ) : (
+                      <Button
+                        type="button"
+                        onClick={generatePlanoApc}
+                        disabled={isGeneratingPlano}
+                        className="gap-2 bg-emerald-500 text-slate-950 hover:bg-emerald-400 disabled:opacity-70"
+                      >
+                        {isGeneratingPlano ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Gerando Plano APC...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="h-4 w-4" />
+                            Gerar Plano APC
+                          </>
+                        )}
+                      </Button>
+                    )
+                  )}
                   <Button
                     type="button"
                     variant="destructive"
@@ -166,6 +229,16 @@ function SubmissionDetail({
                   </Button>
                 </div>
               </div>
+              {isGeneratingPlano && (
+                <p className="mt-3 text-sm text-emerald-400">
+                  Gerando o Plano APC com a OpenAI. Isso pode levar alguns minutos, não feche esta janela.
+                </p>
+              )}
+              {planoError && (
+                <p role="alert" className="mt-3 text-sm text-red-400">
+                  {planoError}
+                </p>
+              )}
             </DialogHeader>
 
             <div className="max-h-[calc(92vh-150px)] overflow-y-auto px-6 py-6">
@@ -425,6 +498,16 @@ export function InternoWorkspace({
     setNotificationQueue(removeSubmission)
   }
 
+  const handlePlanoApcGenerated = (submissionId: string, generatedAt: string) => {
+    const markPlanoApcGenerated = (items: FormSubmission[]) => items.map((item) =>
+      item.id === submissionId ? { ...item, plano_apc_generated_at: generatedAt } : item,
+    )
+    setServicos(markPlanoApcGenerated)
+    setSelectedSubmission((current) =>
+      current && current.id === submissionId ? { ...current, plano_apc_generated_at: generatedAt } : current,
+    )
+  }
+
   const blockSubmissions = activeBlock === "servicos" ? servicos
       : activeBlock === "contabilidade" ? contabilidade
         : activeBlock === "diretoria" ? diretoria
@@ -667,6 +750,7 @@ export function InternoWorkspace({
         submission={selectedSubmission}
         onClose={() => setSelectedSubmission(null)}
         onDelete={deleteSubmission}
+        onPlanoApcGenerated={handlePlanoApcGenerated}
       />
 
       <Dialog open={Boolean(currentNotification)} onOpenChange={() => undefined}>

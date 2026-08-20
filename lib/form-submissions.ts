@@ -11,6 +11,8 @@ export type FormSubmission = {
   read: boolean
   webhook_delivered: boolean
   created_at: string
+  plano_apc_markdown: string | null
+  plano_apc_generated_at: string | null
 }
 
 type SubmissionInput = {
@@ -136,13 +138,16 @@ export function getString(payload: Record<string, unknown>, key: string) {
   return typeof payload[key] === "string" ? payload[key] : ""
 }
 
+const submissionSelectColumns =
+  "id,form_type,company_name,answers,read,webhook_delivered,created_at,plano_apc_markdown,plano_apc_generated_at"
+
 export async function getFormSubmissions(options?: {
   formType?: FormSubmission["form_type"]
   limit?: number
 }) {
   const { url, anonKey } = getSupabaseConfig()
   const query = new URLSearchParams({
-    select: "id,form_type,company_name,answers,read,webhook_delivered,created_at",
+    select: submissionSelectColumns,
     order: "created_at.desc",
   })
   if (options?.formType) query.set("form_type", `eq.${options.formType}`)
@@ -163,7 +168,7 @@ export async function getFormSubmissions(options?: {
 export async function getFormSubmissionById(id: string) {
   const { url, anonKey } = getSupabaseConfig()
   const query = new URLSearchParams({
-    select: "id,form_type,company_name,answers,read,webhook_delivered,created_at",
+    select: submissionSelectColumns,
     id: `eq.${id}`,
     limit: "1",
   })
@@ -179,4 +184,28 @@ export async function getFormSubmissionById(id: string) {
 
   const submissions = (await response.json()) as FormSubmission[]
   return submissions[0] ?? null
+}
+
+export async function savePlanoApc(submissionId: string, markdown: string) {
+  const { url, anonKey } = getSupabaseConfig()
+  const generatedAt = new Date().toISOString()
+  const response = await fetch(
+    `${url}/rest/v1/form_submissions?id=eq.${encodeURIComponent(submissionId)}`,
+    {
+      method: "PATCH",
+      headers: supabaseHeaders(anonKey),
+      body: JSON.stringify({
+        plano_apc_markdown: markdown,
+        plano_apc_generated_at: generatedAt,
+      }),
+      cache: "no-store",
+    },
+  )
+
+  if (!response.ok) {
+    const details = await response.text()
+    throw new Error(`Falha ao salvar o Plano APC: ${response.status} ${details}`)
+  }
+
+  return generatedAt
 }
