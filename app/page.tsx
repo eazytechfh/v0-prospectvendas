@@ -68,6 +68,7 @@ export default function ProspectForms() {
   const [canaisAquisicao, setCanaisAquisicao] = useState<string[]>([])
   const [processoIntegrado, setProcessoIntegrado] = useState("")
   const [possuiCRM, setPossuiCRM] = useState("")
+  const [briefingFile, setBriefingFile] = useState<File | null>(null)
 
   const toggleCanal = (value: string, checked: boolean) => {
     setCanaisAquisicao((current) => checked ? [...current, value] : current.filter((item) => item !== value))
@@ -86,11 +87,14 @@ export default function ProspectForms() {
     const data = Object.fromEntries(formData.entries()) as Record<string, FormDataEntryValue | string[]>
     data.canaisAquisicao = canaisAquisicao
 
+    const submitData = new FormData()
+    submitData.append("payload", JSON.stringify(data))
+    if (briefingFile) submitData.append("briefing", briefingFile)
+
     try {
       const response = await fetch("/api/form-submissions/servicos", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: submitData,
       })
 
       if (!response.ok) throw new Error("Erro ao enviar")
@@ -158,6 +162,17 @@ export default function ProspectForms() {
                     <ShortField id="clientesAtivos" label="Quantos clientes ativos a empresa possui atualmente?" type="number" />
                     <ShortField id="totalColaboradores" label="Qual o número total de colaboradores na empresa hoje?" type="number" />
                     <ShortField id="equipeVendaAtiva" label="Desse total, qual o número de pessoas focadas exclusivamente em vendas (venda ativa)?" type="number" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="briefing" className="text-white">Upload do Briefing (opcional)</Label>
+                    <p className="text-sm italic text-gray-400">Envie um arquivo com informações complementares da empresa, se tiver (PDF, Word, PowerPoint ou imagem).</p>
+                    <Input
+                      id="briefing"
+                      type="file"
+                      accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg"
+                      onChange={(e) => setBriefingFile(e.target.files?.[0] ?? null)}
+                      className="bg-slate-600 border-slate-500 text-white"
+                    />
                   </div>
                 </section>
 

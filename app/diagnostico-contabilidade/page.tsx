@@ -28,6 +28,7 @@ const wizardSteps = [
 export default function DiagnosticoContabilidade() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showSuccessDialog, setShowSuccessDialog] = useState(false)
+  const [briefingFile, setBriefingFile] = useState<File | null>(null)
   const [formData, setFormData] = useState({
     // Seção 1: Identidade e Raízes
     nomeEscritorio: "",
@@ -105,13 +106,14 @@ export default function DiagnosticoContabilidade() {
 
     setIsSubmitting(true)
 
+    const submitData = new FormData()
+    submitData.append("payload", JSON.stringify(formData))
+    if (briefingFile) submitData.append("briefing", briefingFile)
+
     try {
       const response = await fetch("/api/form-submissions/contabilidade", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
+        body: submitData,
       })
 
       if (response.ok) {
@@ -383,6 +385,20 @@ export default function DiagnosticoContabilidade() {
                       </Label>
                       <p className="text-sm text-gray-400">Ex: Fechamos 2 por mês, mas a meta é fechar 5 por mês</p>
                       <Textarea id="novasVendasMensais" value={formData.novasVendasMensais} onChange={(e) => handleInputChange("novasVendasMensais", e.target.value)} className="bg-slate-700 border-slate-600 text-white min-h-[80px]" required />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="briefing" className="text-gray-300">
+                        Upload do Briefing (opcional)
+                      </Label>
+                      <p className="text-sm text-gray-400">Envie um arquivo com informações complementares do escritório, se tiver (PDF, Word, PowerPoint ou imagem).</p>
+                      <Input
+                        id="briefing"
+                        type="file"
+                        accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg"
+                        onChange={(e) => setBriefingFile(e.target.files?.[0] ?? null)}
+                        className="bg-slate-700 border-slate-600 text-white"
+                      />
                     </div>
                   </div>
 

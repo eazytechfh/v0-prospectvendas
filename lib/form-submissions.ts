@@ -13,12 +13,16 @@ export type FormSubmission = {
   created_at: string
   plano_apc_markdown: string | null
   plano_apc_generated_at: string | null
+  briefing_url: string | null
+  briefing_filename: string | null
 }
 
 type SubmissionInput = {
   formType: FormSubmission["form_type"]
   companyName: string
   answers: FormAnswer[]
+  briefingUrl?: string | null
+  briefingFilename?: string | null
 }
 
 type SubmissionRow = {
@@ -61,6 +65,8 @@ export async function insertFormSubmission(input: SubmissionInput) {
       form_type: input.formType,
       company_name: input.companyName,
       answers: input.answers,
+      briefing_url: input.briefingUrl ?? null,
+      briefing_filename: input.briefingFilename ?? null,
     }),
     cache: "no-store",
   })
@@ -139,7 +145,7 @@ export function getString(payload: Record<string, unknown>, key: string) {
 }
 
 const submissionSelectColumns =
-  "id,form_type,company_name,answers,read,webhook_delivered,created_at,plano_apc_markdown,plano_apc_generated_at"
+  "id,form_type,company_name,answers,read,webhook_delivered,created_at,plano_apc_markdown,plano_apc_generated_at,briefing_url,briefing_filename"
 
 export async function getFormSubmissions(options?: {
   formType?: FormSubmission["form_type"]
@@ -208,4 +214,37 @@ export async function savePlanoApc(submissionId: string, markdown: string) {
   }
 
   return generatedAt
+}
+
+const briefingBucket = "briefings"
+
+export async function uploadBriefingFile(
+  formType: FormSubmission["form_type"],
+  file: File,
+): Promise<{ url: string; filename: string }> {
+  const { url, anonKey } = getSupabaseConfig()
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_") || "briefing"
+  const path = `${formType}/${Date.now()}-${safeName}`
+  const bytes = await file.arrayBuffer()
+
+  const response = await fetch(`${url}/storage/v1/object/${briefingBucket}/${path}`, {
+    method: "POST",
+    headers: {
+      apikey: anonKey,
+      Authorization: `Bearer ${anonKey}`,
+      "Content-Type": file.type || "application/octet-stream",
+    },
+    body: bytes,
+    cache: "no-store",
+  })
+
+  if (!response.ok) {
+    const details = await response.text()
+    throw new Error(`Falha ao enviar o briefing para o Supabase Storage: ${response.status} ${details}`)
+  }
+
+  return {
+    url: `${url}/storage/v1/object/public/${briefingBucket}/${path}`,
+    filename: file.name,
+  }
 }

@@ -11,6 +11,7 @@ import {
   Download,
   FileText,
   Loader2,
+  Paperclip,
   Search,
   Sparkles,
   Trash2,
@@ -189,6 +190,14 @@ function SubmissionDetail({
                       Baixar PDF
                     </a>
                   </Button>
+                  {submission.briefing_url && (
+                    <Button asChild variant="outline" className="gap-2 border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 hover:text-white">
+                      <a href={submission.briefing_url} target="_blank" rel="noreferrer">
+                        <Paperclip className="h-4 w-4" />
+                        Baixar Briefing
+                      </a>
+                    </Button>
+                  )}
                   {(submission.form_type === "apc_servicos" || submission.form_type === "apc_contabilidade") && (
                     submission.plano_apc_generated_at ? (
                       <Button asChild className="gap-2 bg-emerald-500 text-slate-950 hover:bg-emerald-400">
