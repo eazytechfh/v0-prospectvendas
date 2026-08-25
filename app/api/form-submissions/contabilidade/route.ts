@@ -4,7 +4,6 @@ import {
   getString,
   insertFormSubmission,
   markWebhookDelivered,
-  uploadBriefingFile,
 } from "@/lib/form-submissions"
 
 const webhookUrl = "https://eazytech-n8n.gsl3ku.easypanel.host/webhook/contabilidade"
@@ -50,31 +49,18 @@ export async function POST(request: Request) {
   let payload: Record<string, unknown>
 
   try {
-    const requestFormData = await request.formData()
-    payload = JSON.parse(String(requestFormData.get("payload") ?? "{}")) as Record<string, unknown>
-
-    const briefingFile = requestFormData.get("briefing")
-    let briefingUrl: string | null = null
-    let briefingFilename: string | null = null
-    if (briefingFile instanceof File && briefingFile.size > 0) {
-      const uploaded = await uploadBriefingFile("apc_contabilidade", briefingFile)
-      briefingUrl = uploaded.url
-      briefingFilename = uploaded.filename
-    }
-
+    payload = (await request.json()) as Record<string, unknown>
     const submissionId = await insertFormSubmission({
       formType: "apc_contabilidade",
       companyName: getString(payload, "nomeEscritorio"),
       answers: buildAnswers(payload, fields),
-      briefingUrl,
-      briefingFilename,
     })
 
     try {
       const webhookResponse = await fetch(webhookUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...payload, briefingUrl, briefingFilename }),
+        body: JSON.stringify(payload),
       })
 
       if (!webhookResponse.ok) {

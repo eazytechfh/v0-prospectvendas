@@ -21,8 +21,6 @@ type SubmissionInput = {
   formType: FormSubmission["form_type"]
   companyName: string
   answers: FormAnswer[]
-  briefingUrl?: string | null
-  briefingFilename?: string | null
 }
 
 type SubmissionRow = {
@@ -65,8 +63,6 @@ export async function insertFormSubmission(input: SubmissionInput) {
       form_type: input.formType,
       company_name: input.companyName,
       answers: input.answers,
-      briefing_url: input.briefingUrl ?? null,
-      briefing_filename: input.briefingFilename ?? null,
     }),
     cache: "no-store",
   })
@@ -247,4 +243,42 @@ export async function uploadBriefingFile(
     url: `${url}/storage/v1/object/public/${briefingBucket}/${path}`,
     filename: file.name,
   }
+}
+
+export async function createBriefingSubmission(input: {
+  formType: "apc_servicos" | "apc_contabilidade"
+  companyName: string
+  file: File
+}): Promise<FormSubmission> {
+  const uploaded = await uploadBriefingFile(input.formType, input.file)
+  const { url, anonKey } = getSupabaseConfig()
+  const response = await fetch(`${url}/rest/v1/form_submissions`, {
+    method: "POST",
+    headers: {
+      ...supabaseHeaders(anonKey),
+      Prefer: "return=representation",
+    },
+    body: JSON.stringify({
+      form_type: input.formType,
+      company_name: input.companyName,
+      answers: [],
+      briefing_url: uploaded.url,
+      briefing_filename: uploaded.filename,
+    }),
+    cache: "no-store",
+  })
+
+  if (!response.ok) {
+    const details = await response.text()
+    throw new Error(`Falha ao importar o briefing no Supabase: ${response.status} ${details}`)
+  }
+
+  const rows = (await response.json()) as FormSubmission[]
+  const submission = rows[0]
+
+  if (!submission?.id) {
+    throw new Error("Supabase não retornou o formulário importado")
+  }
+
+  return submission
 }

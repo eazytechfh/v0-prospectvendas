@@ -385,6 +385,11 @@ export function InternoWorkspace({
   const [queueIndex, setQueueIndex] = useState(0)
   const [isAcknowledging, setIsAcknowledging] = useState(false)
   const [acknowledgeError, setAcknowledgeError] = useState("")
+  const [showImportDialog, setShowImportDialog] = useState(false)
+  const [importCompanyName, setImportCompanyName] = useState("")
+  const [importFile, setImportFile] = useState<File | null>(null)
+  const [isImporting, setIsImporting] = useState(false)
+  const [importError, setImportError] = useState("")
   const supabase = useMemo(
     () => createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -515,6 +520,62 @@ export function InternoWorkspace({
     setSelectedSubmission((current) =>
       current && current.id === submissionId ? { ...current, plano_apc_generated_at: generatedAt } : current,
     )
+  }
+
+  const closeImportDialog = () => {
+    if (isImporting) return
+    setShowImportDialog(false)
+    setImportCompanyName("")
+    setImportFile(null)
+    setImportError("")
+  }
+
+  const importBriefing = async () => {
+    if (isImporting) return
+    if (activeBlock !== "servicos" && activeBlock !== "contabilidade") return
+
+    if (!importCompanyName.trim()) {
+      setImportError("Informe o nome da empresa.")
+      return
+    }
+    if (!importFile) {
+      setImportError("Selecione um arquivo de briefing.")
+      return
+    }
+
+    setIsImporting(true)
+    setImportError("")
+
+    const formData = new FormData()
+    formData.append("formType", activeBlock === "servicos" ? "apc_servicos" : "apc_contabilidade")
+    formData.append("companyName", importCompanyName.trim())
+    formData.append("briefing", importFile)
+
+    try {
+      const response = await fetch("/api/form-submissions/import-briefing", {
+        method: "POST",
+        body: formData,
+      })
+      const data = (await response.json().catch(() => ({}))) as { error?: string; submission?: FormSubmission }
+
+      if (!response.ok || !data.submission) {
+        throw new Error(data.error || "Não foi possível importar o briefing.")
+      }
+
+      const submission = data.submission
+      if (submission.form_type === "apc_servicos") {
+        setServicos((current) => [submission, ...current.filter((item) => item.id !== submission.id)])
+      } else {
+        setContabilidade((current) => [submission, ...current.filter((item) => item.id !== submission.id)])
+      }
+
+      closeImportDialog()
+    } catch (error) {
+      console.error("Falha ao importar briefing:", error)
+      setImportError(error instanceof Error ? error.message : "Não foi possível importar o briefing.")
+    } finally {
+      setIsImporting(false)
+    }
   }
 
   const blockSubmissions = activeBlock === "servicos" ? servicos
@@ -661,9 +722,21 @@ export function InternoWorkspace({
               <p className="text-sm font-medium text-amber-400">Arquivo de formulários</p>
               <h1 className="mt-1 text-3xl font-semibold tracking-tight text-white">{activeConfig.title}</h1>
             </div>
-            <p className="text-sm text-slate-500">
-              {filteredSubmissions.length} {filteredSubmissions.length === 1 ? "registro" : "registros"}
-            </p>
+            <div className="flex items-center gap-4">
+              <p className="text-sm text-slate-500">
+                {filteredSubmissions.length} {filteredSubmissions.length === 1 ? "registro" : "registros"}
+              </p>
+              {(activeBlock === "servicos" || activeBlock === "contabilidade") && (
+                <Button
+                  type="button"
+                  onClick={() => setShowImportDialog(true)}
+                  className="gap-2 bg-amber-500 text-slate-950 hover:bg-amber-400"
+                >
+                  <Paperclip className="h-4 w-4" />
+                  Importar Briefing
+                </Button>
+              )}
+            </div>
           </div>
 
           {filterBlock && (
@@ -761,6 +834,64 @@ export function InternoWorkspace({
         onDelete={deleteSubmission}
         onPlanoApcGenerated={handlePlanoApcGenerated}
       />
+
+      <Dialog open={showImportDialog} onOpenChange={(open) => !open && closeImportDialog()}>
+        <DialogContent className="border-slate-700 bg-slate-900 text-slate-100 sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white">Importar Briefing</DialogTitle>
+            <DialogDescription className="pt-2 leading-6 text-slate-300">
+              Anexe um arquivo de briefing diretamente em {activeConfig.title}, sem depender do preenchimento do formulário público.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label htmlFor="import-company-name" className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                Nome da empresa
+              </label>
+              <Input
+                id="import-company-name"
+                type="text"
+                value={importCompanyName}
+                onChange={(event) => setImportCompanyName(event.target.value)}
+                className="border-slate-700 bg-slate-950 text-white"
+              />
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="import-briefing-file" className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                Arquivo do briefing
+              </label>
+              <Input
+                id="import-briefing-file"
+                type="file"
+                accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg"
+                onChange={(event) => setImportFile(event.target.files?.[0] ?? null)}
+                className="border-slate-700 bg-slate-950 text-white"
+              />
+            </div>
+          </div>
+          {importError && <p role="alert" className="text-sm text-red-400">{importError}</p>}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={closeImportDialog} disabled={isImporting}>
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={importBriefing}
+              disabled={isImporting}
+              className="gap-2 bg-amber-500 text-slate-950 hover:bg-amber-400 disabled:opacity-70"
+            >
+              {isImporting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Importando...
+                </>
+              ) : (
+                "Importar"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={Boolean(currentNotification)} onOpenChange={() => undefined}>
         <DialogContent
