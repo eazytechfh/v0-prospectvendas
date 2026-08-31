@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -68,6 +68,8 @@ export default function ProspectForms() {
   const [canaisAquisicao, setCanaisAquisicao] = useState<string[]>([])
   const [processoIntegrado, setProcessoIntegrado] = useState("")
   const [possuiCRM, setPossuiCRM] = useState("")
+  // Impede envio duplo mesmo em cliques muito rápidos (antes do re-render do React)
+  const submittingRef = useRef(false)
 
   const toggleCanal = (value: string, checked: boolean) => {
     setCanaisAquisicao((current) => checked ? [...current, value] : current.filter((item) => item !== value))
@@ -76,11 +78,13 @@ export default function ProspectForms() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
 
+    if (submittingRef.current) return
     if (canaisAquisicao.length === 0) {
       alert("Selecione pelo menos um canal de aquisição.")
       return
     }
 
+    submittingRef.current = true
     setIsSubmitting(true)
     const formData = new FormData(e.currentTarget)
     const data = Object.fromEntries(formData.entries()) as Record<string, FormDataEntryValue | string[]>
@@ -96,6 +100,7 @@ export default function ProspectForms() {
       if (!response.ok) throw new Error("Erro ao enviar")
       setShowSuccessDialog(true)
     } catch {
+      submittingRef.current = false  // permite retentar apenas em caso de erro
       alert("Erro ao enviar o formulário. Tente novamente.")
     } finally {
       setIsSubmitting(false)

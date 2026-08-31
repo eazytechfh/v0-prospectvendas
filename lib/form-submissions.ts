@@ -138,6 +138,33 @@ export function getString(payload: Record<string, unknown>, key: string) {
   return typeof payload[key] === "string" ? payload[key] : ""
 }
 
+/**
+ * Verifica se já existe uma submissão com o mesmo form_type e company_name
+ * nos últimos `windowMinutes` minutos. Usado para evitar duplicatas.
+ */
+export async function findRecentDuplicate(
+  formType: FormSubmission["form_type"],
+  companyName: string,
+  windowMinutes = 5,
+) {
+  const { url, anonKey } = getSupabaseConfig()
+  const since = new Date(Date.now() - windowMinutes * 60 * 1000).toISOString()
+  const query = new URLSearchParams({
+    select: "id",
+    form_type: `eq.${formType}`,
+    company_name: `eq.${companyName}`,
+    created_at: `gte.${since}`,
+    limit: "1",
+  })
+  const response = await fetch(`${url}/rest/v1/form_submissions?${query}`, {
+    headers: supabaseHeaders(anonKey),
+    cache: "no-store",
+  })
+  if (!response.ok) return null
+  const rows = (await response.json()) as { id: string }[]
+  return rows[0] ?? null
+}
+
 const submissionSelectColumns =
   "id,form_type,company_name,answers,read,webhook_delivered,created_at,plano_apc_markdown,plano_apc_generated_at"
 

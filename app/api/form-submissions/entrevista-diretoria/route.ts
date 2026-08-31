@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { buildAnswers, getString, insertFormSubmission } from "@/lib/form-submissions"
+import { buildAnswers, findRecentDuplicate, getString, insertFormSubmission } from "@/lib/form-submissions"
 
 const fields = [
   ["data", "Data"],
@@ -61,6 +61,13 @@ export async function POST(request: Request) {
     const payload = (await request.json()) as Record<string, unknown>
     const companyName = getString(payload, "cliente").trim()
     if (!companyName) return NextResponse.json({ error: "Cliente não informado." }, { status: 400 })
+
+    // Protege contra duplo envio: rejeita submissão da mesma empresa nos últimos 5 min
+    const duplicate = await findRecentDuplicate("entrevista_diretoria", companyName)
+    if (duplicate) {
+      console.log(`[Entrevista Diretoria] Submissão duplicada ignorada para "${companyName}" (id: ${duplicate.id})`)
+      return NextResponse.json({ success: true })
+    }
 
     await insertFormSubmission({
       formType: "entrevista_diretoria",

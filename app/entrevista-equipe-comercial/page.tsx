@@ -141,6 +141,7 @@ function fillForm(form: HTMLFormElement, collaborator: Colaborador) {
 
 export default function EntrevistaEquipeComercialPage() {
   const formRef = useRef<HTMLFormElement>(null)
+  const submittingRef = useRef(false)
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([])
   const [showSuccess, setShowSuccess] = useState(false)
   const [submittedCount, setSubmittedCount] = useState(0)
@@ -165,9 +166,11 @@ export default function EntrevistaEquipeComercialPage() {
 
   const submitAll = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (submittingRef.current) return
     const form = event.currentTarget
     const collaborator = Object.fromEntries(new FormData(form).entries())
     const allCollaborators = [...colaboradores, collaborator]
+    submittingRef.current = true
     setIsSubmitting(true)
     setSubmissionError("")
     const controller = new AbortController()
@@ -203,6 +206,7 @@ export default function EntrevistaEquipeComercialPage() {
       form.reset()
       setShowSuccess(true)
     } catch (error) {
+      submittingRef.current = false
       setSubmissionError(
         error instanceof DOMException && error.name === "AbortError"
           ? "O envio excedeu 60 segundos e foi interrompido. Verifique os registros no painel interno antes de reenviar."

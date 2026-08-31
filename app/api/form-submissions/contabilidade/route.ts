@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import {
   buildAnswers,
+  findRecentDuplicate,
   getString,
   insertFormSubmission,
   markWebhookDelivered,
@@ -50,27 +51,35 @@ export async function POST(request: Request) {
 
   try {
     payload = (await request.json()) as Record<string, unknown>
+    const companyName = getString(payload, "nomeEscritorio")
+
+    // Protege contra duplo envio: rejeita submissão da mesma empresa nos últimos 5 min
+    const duplicate = await findRecentDuplicate("apc_contabilidade", companyName)
+    if (duplicate) {
+      console.log(`[APC Contabilidade] Submissão duplicada ignorada para "${companyName}" (id: ${duplicate.id})`)
+      return NextResponse.json({ success: true })
+    }
+
     const submissionId = await insertFormSubmission({
       formType: "apc_contabilidade",
-      companyName: getString(payload, "nomeEscritorio"),
+      companyName,
       answers: buildAnswers(payload, fields),
     })
 
-    try {
-      const webhookResponse = await fetch(webhookUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      })
-
-      if (!webhookResponse.ok) {
-        throw new Error(`Webhook respondeu com status ${webhookResponse.status}`)
+    // Dispara o webhook em background — não bloqueia a resposta ao usuário
+    fetch(webhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }).then(async (res) => {
+      if (res.ok) {
+        await markWebhookDelivered(submissionId)
+      } else {
+        console.error(`Webhook APC Contabilidade respondeu com status ${res.status}`)
       }
-
-      await markWebhookDelivered(submissionId)
-    } catch (error) {
-      console.error("Formulário salvo, mas o webhook de APC Contabilidade falhou:", error)
-    }
+    }).catch((err) => {
+      console.error("Webhook de APC Contabilidade falhou:", err)
+    })
 
     return NextResponse.json({ success: true })
   } catch (error) {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { CheckCircle2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -111,9 +111,12 @@ export default function EntrevistaDiretoriaPage() {
   const [utilizaCrm, setUtilizaCrm] = useState("")
   const [showSuccess, setShowSuccess] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const submittingRef = useRef(false)
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (submittingRef.current) return
+    submittingRef.current = true
     setIsSubmitting(true)
 
     try {
@@ -126,6 +129,7 @@ export default function EntrevistaDiretoriaPage() {
       if (!response.ok) throw new Error("Erro ao enviar")
       setShowSuccess(true)
     } catch {
+      submittingRef.current = false
       alert("Erro ao enviar a entrevista. Tente novamente.")
     } finally {
       setIsSubmitting(false)

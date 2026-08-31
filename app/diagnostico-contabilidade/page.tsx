@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -28,6 +28,7 @@ const wizardSteps = [
 export default function DiagnosticoContabilidade() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showSuccessDialog, setShowSuccessDialog] = useState(false)
+  const submittingRef = useRef(false)
   const [formData, setFormData] = useState({
     // Seção 1: Identidade e Raízes
     nomeEscritorio: "",
@@ -98,11 +99,13 @@ export default function DiagnosticoContabilidade() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    if (submittingRef.current) return
     if (checkboxGroups.some((group) => group.length === 0)) {
       alert("Selecione pelo menos uma opção em cada grupo de múltipla escolha.")
       return
     }
 
+    submittingRef.current = true
     setIsSubmitting(true)
 
     try {
@@ -120,6 +123,7 @@ export default function DiagnosticoContabilidade() {
         throw new Error("Erro ao enviar")
       }
     } catch (error) {
+      submittingRef.current = false
       alert("Erro ao enviar diagnóstico. Por favor, tente novamente.")
     } finally {
       setIsSubmitting(false)
