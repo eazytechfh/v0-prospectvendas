@@ -334,6 +334,18 @@ function SubmissionList({
               </span>
             </span>
           </span>
+          {(submission.form_type === "apc_servicos" || submission.form_type === "apc_contabilidade") && (
+            <span
+              className={cn(
+                "shrink-0 rounded-full border px-3 py-1 text-xs font-semibold",
+                submission.plano_apc_downloaded_at
+                  ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
+                  : "border-slate-700 bg-slate-800/70 text-slate-400",
+              )}
+            >
+              {submission.plano_apc_downloaded_at ? "Plano realizado" : "Plano pendente"}
+            </span>
+          )}
           <span className="text-xl text-slate-600 transition-transform group-hover:translate-x-1 group-hover:text-amber-400">→</span>
         </button>
       ))}

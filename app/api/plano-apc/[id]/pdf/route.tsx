@@ -1,8 +1,13 @@
 import { Document, Page, StyleSheet, Text, View, renderToBuffer } from "@react-pdf/renderer"
-import { getFormSubmissionById } from "@/lib/form-submissions"
+import { getFormSubmissionById, markPlanoApcDownloaded } from "@/lib/form-submissions"
 import { MarkdownPdfBlocks, parseMarkdownToPdfBlocks } from "@/lib/markdown-pdf"
 
 export const runtime = "nodejs"
+
+const formTypeLabels = {
+  apc_servicos: "APC Serviços",
+  apc_contabilidade: "APC Contabilidade",
+} as const
 
 const styles = StyleSheet.create({
   page: {
@@ -94,7 +99,9 @@ export async function GET(
       <Document title={`Plano APC - ${submission.company_name || "Empresa"}`}>
         <Page size="A4" style={styles.page}>
           <View style={styles.header} fixed>
-            <Text style={styles.eyebrow}>Plano APC · APC Serviços</Text>
+            <Text style={styles.eyebrow}>
+              Plano APC · {formTypeLabels[submission.form_type as keyof typeof formTypeLabels] ?? "APC Vendas"}
+            </Text>
             <Text style={styles.date}>
               Gerado em {formatDate(submission.plano_apc_generated_at ?? submission.created_at)}
             </Text>
@@ -110,6 +117,8 @@ export async function GET(
         </Page>
       </Document>,
     )
+
+    await markPlanoApcDownloaded(id)
 
     return new Response(new Uint8Array(pdf), {
       headers: {

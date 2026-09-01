@@ -13,6 +13,7 @@ export type FormSubmission = {
   created_at: string
   plano_apc_markdown: string | null
   plano_apc_generated_at: string | null
+  plano_apc_downloaded_at: string | null
 }
 
 type SubmissionInput = {
@@ -166,7 +167,7 @@ export async function findRecentDuplicate(
 }
 
 const submissionSelectColumns =
-  "id,form_type,company_name,answers,read,webhook_delivered,created_at,plano_apc_markdown,plano_apc_generated_at"
+  "id,form_type,company_name,answers,read,webhook_delivered,created_at,plano_apc_markdown,plano_apc_generated_at,plano_apc_downloaded_at"
 
 export async function getFormSubmissions(options?: {
   formType?: FormSubmission["form_type"]
@@ -235,4 +236,23 @@ export async function savePlanoApc(submissionId: string, markdown: string) {
   }
 
   return generatedAt
+}
+
+export async function markPlanoApcDownloaded(submissionId: string) {
+  const { url, anonKey } = getSupabaseConfig()
+  const downloadedAt = new Date().toISOString()
+  const response = await fetch(
+    `${url}/rest/v1/form_submissions?id=eq.${encodeURIComponent(submissionId)}&plano_apc_downloaded_at=is.null`,
+    {
+      method: "PATCH",
+      headers: supabaseHeaders(anonKey),
+      body: JSON.stringify({ plano_apc_downloaded_at: downloadedAt }),
+      cache: "no-store",
+    },
+  )
+
+  if (!response.ok) {
+    const details = await response.text()
+    throw new Error(`Falha ao registrar download do Plano APC: ${response.status} ${details}`)
+  }
 }
