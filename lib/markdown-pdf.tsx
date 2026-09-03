@@ -292,7 +292,7 @@ function TableOfContents({ blocks }: { blocks: PdfBlock[] }) {
   )
 }
 
-export function MarkdownPdfBlocks({ blocks }: { blocks: PdfBlock[] }) {
+export function MarkdownPdfBlocks({ blocks, tocBlocks }: { blocks: PdfBlock[]; tocBlocks?: PdfBlock[] }) {
   const firstTitleIndex = blocks.findIndex((block) => block.type === "h1")
 
   return (
@@ -303,7 +303,7 @@ export function MarkdownPdfBlocks({ blocks }: { blocks: PdfBlock[] }) {
             return (
               <View key={index}>
                 <Text style={styles.h1}>{block.text}</Text>
-                {index === firstTitleIndex && <TableOfContents blocks={blocks} />}
+                {index === firstTitleIndex && <TableOfContents blocks={tocBlocks ?? blocks} />}
               </View>
             )
           case "h2":
@@ -328,12 +328,10 @@ export function MarkdownPdfBlocks({ blocks }: { blocks: PdfBlock[] }) {
             return <View key={index} style={styles.hr} />
           case "li":
             return (
-              <View key={index} style={{ flexDirection: "row" }}>
-                <Text style={styles.li}>{`${block.marker}  `}</Text>
-                <Text style={[styles.li, { flex: 1 }]}>
-                  <Runs runs={block.runs} />
-                </Text>
-              </View>
+              <Text key={index} style={styles.li} wrap={false}>
+                {`${block.marker}  `}
+                <Runs runs={block.runs} />
+              </Text>
             )
           case "table":
             return <MarkdownTable key={index} block={block} />

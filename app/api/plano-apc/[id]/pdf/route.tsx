@@ -94,27 +94,33 @@ export async function GET(
     }
 
     const blocks = parseMarkdownToPdfBlocks(submission.plano_apc_markdown)
+    const blockChunks = Array.from(
+      { length: Math.ceil(blocks.length / 60) },
+      (_, index) => blocks.slice(index * 60, (index + 1) * 60),
+    )
 
     const pdf = await renderToBuffer(
       <Document title={`Plano APC - ${submission.company_name || "Empresa"}`}>
-        <Page size="A4" style={styles.page}>
-          <View style={styles.header} fixed>
-            <Text style={styles.eyebrow}>
-              Plano APC · {formTypeLabels[submission.form_type as keyof typeof formTypeLabels] ?? "APC Vendas"}
-            </Text>
-            <Text style={styles.date}>
-              Gerado em {formatDate(submission.plano_apc_generated_at ?? submission.created_at)}
-            </Text>
-          </View>
+        {blockChunks.map((chunk, index) => (
+          <Page key={index} size="A4" style={styles.page}>
+            <View style={styles.header} fixed>
+              <Text style={styles.eyebrow}>
+                Plano APC · {formTypeLabels[submission.form_type as keyof typeof formTypeLabels] ?? "APC Vendas"}
+              </Text>
+              <Text style={styles.date}>
+                Gerado em {formatDate(submission.plano_apc_generated_at ?? submission.created_at)}
+              </Text>
+            </View>
 
-          <MarkdownPdfBlocks blocks={blocks} />
+            <MarkdownPdfBlocks blocks={chunk} tocBlocks={index === 0 ? blocks : undefined} />
 
-          <Text
-            style={styles.footer}
-            fixed
-            render={({ pageNumber, totalPages }) => `Prospect Vendas · Página ${pageNumber} de ${totalPages}`}
-          />
-        </Page>
+            <Text
+              style={styles.footer}
+              fixed
+              render={({ pageNumber, totalPages }) => `Prospect Vendas · Página ${pageNumber} de ${totalPages}`}
+            />
+          </Page>
+        ))}
       </Document>,
     )
 

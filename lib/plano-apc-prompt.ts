@@ -37,6 +37,8 @@ REGRAS INEGOCIÁVEIS:
 - Use o nome real do(a) ${segment.entityLabel} e do responsável (extraídos do formulário) ao longo de todo o texto — nunca use exemplos fictícios.
 - Fale sobre ${segment.offeringLabel} usando a terminologia real do cliente extraída das respostas, não termos genéricos de outro segmento.
 - Nunca inclua instruções, meta-comentários ou notas sobre como o relatório foi gerado. Entregue apenas o relatório final.
+- Você tem espaço de sobra — não economize palavras. Desdobre cada resposta do briefing em análise, não apenas a resuma.
+- Cumpra todos os mínimos de volume indicados abaixo. Antes de concluir, faça uma contagem silenciosa das palavras e expanda qualquer subseção ou campo que ainda não atinja o mínimo exigido, sem mencionar essa revisão na saída. Nunca entregue uma seção abaixo do mínimo.
 
 FORMATO DE SAÍDA — Markdown puro, seguindo EXATAMENTE esta estrutura de títulos (não pule nenhuma seção, não adicione seções extras):
 
@@ -49,10 +51,10 @@ FORMATO DE SAÍDA — Markdown puro, seguindo EXATAMENTE esta estrutura de títu
 (4-6 parágrafos descrevendo modelo comercial atual, equipe, canais de aquisição, tecnologia utilizada, com base nas respostas)
 
 ## 3. Identificação de Gargalos e Pontos de Atrito
-(Introdução de 1 parágrafo, depois EXATAMENTE 6 subseções, numeradas de "### 3.1. Nome do Gargalo" até "### 3.6. Nome do Gargalo". Em cada subseção, escreva um parágrafo de análise e uma linha "**Ponto de Atrito:** ..." explicando o impacto concreto.)
+(Introdução de 1 parágrafo, depois EXATAMENTE 6 subseções, numeradas de "### 3.1. Nome do Gargalo" até "### 3.6. Nome do Gargalo". Em cada subseção, escreva no mínimo 120 palavras de análise em EXATAMENTE 3 parágrafos. Para assegurar margem ampla acima desse mínimo, desenvolva cada um dos 3 parágrafos com pelo menos 80 palavras e mire pelo menos 240 palavras no total. Cite e conecte dados concretos do briefing, como números, nomes, ferramentas e situações mencionadas, e finalize com uma linha "**Ponto de Atrito:** ..." explicando o impacto concreto. A contagem mínima considera somente os 3 parágrafos de análise, sem contar o título nem a linha "Ponto de Atrito".)
 
 ## 4. Oportunidades de Melhoria
-(Introdução de 1 parágrafo, depois EXATAMENTE 6 subseções, numeradas de "### 4.1. Nome da Oportunidade" até "### 4.6. Nome da Oportunidade". Em cada subseção, escreva um parágrafo de descrição e uma linha "**Impacto Esperado:** ...".)
+(Introdução de 1 parágrafo, depois EXATAMENTE 6 subseções, numeradas de "### 4.1. Nome da Oportunidade" até "### 4.6. Nome da Oportunidade". Em cada subseção, escreva no mínimo 120 palavras de análise em EXATAMENTE 3 parágrafos. Para assegurar margem ampla acima desse mínimo, desenvolva cada um dos 3 parágrafos com pelo menos 80 palavras e mire pelo menos 240 palavras no total. Cite e conecte dados concretos do briefing, como números, nomes, ferramentas e situações mencionadas, e finalize com uma linha "**Impacto Esperado:** ...". A contagem mínima considera somente os 3 parágrafos de análise, sem contar o título nem a linha "Impacto Esperado".)
 
 ## 5. Análise SWOT de Vendas
 (Um parágrafo de introdução e, em seguida, EXATAMENTE duas tabelas Markdown no formato abaixo. Use itens objetivos, ordenados por relevância. Não crie subseções para os quadrantes.)
@@ -81,8 +83,11 @@ FORMATO DE SAÍDA — Markdown puro, seguindo EXATAMENTE esta estrutura de títu
 - **{Subtópico 1}:** {explicação}
 - **{Subtópico 2}:** {explicação}
 - **{Subtópico 3}:** {explicação}
+- **{Subtópico 4}:** {explicação}
+(Inclua de 4 a 6 bullets em "Descrição Detalhada"; cada bullet deve ter no mínimo 25 palavras.)
 
 **Impacto Esperado (Por que fazer isso?):**
+- {item}
 - {item}
 - {item}
 
@@ -93,8 +98,10 @@ FORMATO DE SAÍDA — Markdown puro, seguindo EXATAMENTE esta estrutura de títu
 **Recursos Necessários:**
 - {item}
 - {item}
+- {item}
 
 **Indicadores de Sucesso (Como saber se deu certo?):**
+- {item}
 - {item}
 - {item}
 
@@ -106,6 +113,7 @@ FORMATO DE SAÍDA — Markdown puro, seguindo EXATAMENTE esta estrutura de títu
 
 REGRA DE CORRESPONDÊNCIA 1:1:
 - Produza exatamente 6 gargalos, 6 oportunidades e 6 ações.
+- Em cada ação, produza no mínimo 3 bullets em "Impacto Esperado (Por que fazer isso?)", no mínimo 3 bullets em "Recursos Necessários" e no mínimo 3 bullets em "Indicadores de Sucesso (Como saber se deu certo?)".
 - O gargalo 3.1 deve originar diretamente a oportunidade 4.1, que deve ser resolvida diretamente pela ação 7.1. Repita a mesma correspondência para os números 2 a 6.
 - Preserve essa ordem mesmo quando houver diferenças de prioridade. Dentro dessa correspondência, ordene os seis conjuntos por impacto x urgência.
 - Cubra, quando forem aplicáveis às respostas do cliente: estruturação/formalização do processo comercial, tecnologia/CRM, geração e qualificação de leads (incluindo prospecção ativa como complemento aos canais atuais), capacitação e comunicação de valor.
@@ -134,5 +142,7 @@ export function buildPlanoApcPrompt(submission: FormSubmission) {
 
 ${briefing}`
 
-  return { system: buildSystemPrompt(segment), user: userPrompt, companyName }
+  const depthChecklist = `Antes de entregar, valide silenciosamente: cada análise de 3.1 a 3.6 e 4.1 a 4.6 contém exatamente 3 parágrafos, cada parágrafo foi desenvolvido com pelo menos 80 palavras e o conjunto mira pelo menos 240 palavras próprias, jamais ficando abaixo do mínimo absoluto de 120 palavras (excluindo título e linha de impacto); cada Descrição Detalhada tem 4-6 bullets de pelo menos 25 palavras; e Impacto Esperado, Recursos Necessários e Indicadores de Sucesso têm pelo menos 3 bullets cada. Expanda o texto até todos os mínimos serem cumpridos.`
+
+  return { system: buildSystemPrompt(segment), user: `${userPrompt}\n\n${depthChecklist}`, companyName }
 }

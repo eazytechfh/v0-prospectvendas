@@ -11,6 +11,7 @@ import {
   Download,
   FileText,
   Loader2,
+  RotateCcw,
   Search,
   Sparkles,
   Trash2,
@@ -20,6 +21,16 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ProspectLogo } from "@/components/prospect-logo"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import type { FormSubmission } from "@/lib/form-submissions"
 import { cn } from "@/lib/utils"
@@ -110,14 +121,25 @@ function SubmissionDetail({
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState("")
   const [isGeneratingPlano, setIsGeneratingPlano] = useState(false)
+  const [showRegenerateConfirmation, setShowRegenerateConfirmation] = useState(false)
   const [planoError, setPlanoError] = useState("")
 
   useEffect(() => {
     setPlanoError("")
     setIsGeneratingPlano(false)
+    setShowRegenerateConfirmation(false)
   }, [submission?.id])
 
-  const generatePlanoApc = async () => {
+  const downloadPlanoApc = (submissionId: string) => {
+    const link = document.createElement("a")
+    link.href = `/api/plano-apc/${submissionId}/pdf`
+    link.download = ""
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+  }
+
+  const generatePlanoApc = async (downloadAfterGeneration = false) => {
     if (!submission || isGeneratingPlano) return
 
     setIsGeneratingPlano(true)
@@ -132,6 +154,8 @@ function SubmissionDetail({
       }
 
       onPlanoApcGenerated(submission.id, data.generatedAt ?? new Date().toISOString())
+      if (downloadAfterGeneration) downloadPlanoApc(submission.id)
+      setShowRegenerateConfirmation(false)
     } catch (error) {
       console.error("Falha ao gerar Plano APC:", error)
       setPlanoError(error instanceof Error ? error.message : "Não foi possível gerar o Plano APC.")
@@ -182,7 +206,7 @@ function SubmissionDetail({
                     {formatDate(submission.created_at)}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center justify-end gap-2">
                   <Button asChild className="gap-2 bg-amber-500 text-slate-950 hover:bg-amber-400">
                     <a href={`/api/pdf/${submission.id}`} download>
                       <Download className="h-4 w-4" />
@@ -190,17 +214,33 @@ function SubmissionDetail({
                     </a>
                   </Button>
                   {(submission.form_type === "apc_servicos" || submission.form_type === "apc_contabilidade") && (
-                    submission.plano_apc_generated_at ? (
-                      <Button asChild className="gap-2 bg-emerald-500 text-slate-950 hover:bg-emerald-400">
-                        <a href={`/api/plano-apc/${submission.id}/pdf`} download>
-                          <Sparkles className="h-4 w-4" />
-                          Baixar Plano APC
-                        </a>
-                      </Button>
+                    submission.plano_apc_markdown ? (
+                      <>
+                        <Button asChild className="gap-2 bg-emerald-500 text-slate-950 hover:bg-emerald-400">
+                          <a href={`/api/plano-apc/${submission.id}/pdf`} download>
+                            <Sparkles className="h-4 w-4" />
+                            Baixar PDF do Plano
+                          </a>
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setShowRegenerateConfirmation(true)}
+                          disabled={isGeneratingPlano}
+                          className="gap-2 border-amber-500/50 bg-transparent text-amber-300 hover:bg-amber-500/10 hover:text-amber-200 disabled:opacity-70"
+                        >
+                          {isGeneratingPlano ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <RotateCcw className="h-4 w-4" />
+                          )}
+                          {isGeneratingPlano ? "Gerando novamente..." : "Gerar novamente"}
+                        </Button>
+                      </>
                     ) : (
                       <Button
                         type="button"
-                        onClick={generatePlanoApc}
+                        onClick={() => void generatePlanoApc()}
                         disabled={isGeneratingPlano}
                         className="gap-2 bg-emerald-500 text-slate-950 hover:bg-emerald-400 disabled:opacity-70"
                       >
@@ -272,6 +312,37 @@ function SubmissionDetail({
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={showRegenerateConfirmation} onOpenChange={setShowRegenerateConfirmation}>
+        <AlertDialogContent className="border-slate-700 bg-slate-900 text-slate-100">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">Gerar o Plano APC novamente?</AlertDialogTitle>
+            <AlertDialogDescription className="leading-6 text-slate-300">
+              Isso vai substituir o Plano APC atual de {submission ? companyName(submission) : "esta empresa"} e consumir créditos da OpenAI. A geração pode levar de 30 segundos a alguns minutos. Deseja continuar?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isGeneratingPlano}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault()
+                void generatePlanoApc(true)
+              }}
+              disabled={isGeneratingPlano}
+              className="bg-amber-500 text-slate-950 hover:bg-amber-400"
+            >
+              {isGeneratingPlano ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Gerando novamente...
+                </>
+              ) : (
+                "Sim, gerar novamente"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={showDeleteConfirmation} onOpenChange={(open) => !open && closeDeleteConfirmation()}>
         <DialogContent className="border-slate-700 bg-slate-900 text-slate-100 sm:max-w-md">
@@ -512,11 +583,16 @@ export function InternoWorkspace({
 
   const handlePlanoApcGenerated = (submissionId: string, generatedAt: string) => {
     const markPlanoApcGenerated = (items: FormSubmission[]) => items.map((item) =>
-      item.id === submissionId ? { ...item, plano_apc_generated_at: generatedAt } : item,
+      item.id === submissionId
+        ? { ...item, plano_apc_markdown: item.plano_apc_markdown || "generated", plano_apc_generated_at: generatedAt }
+        : item,
     )
     setServicos(markPlanoApcGenerated)
+    setContabilidade(markPlanoApcGenerated)
     setSelectedSubmission((current) =>
-      current && current.id === submissionId ? { ...current, plano_apc_generated_at: generatedAt } : current,
+      current && current.id === submissionId
+        ? { ...current, plano_apc_markdown: current.plano_apc_markdown || "generated", plano_apc_generated_at: generatedAt }
+        : current,
     )
   }
 

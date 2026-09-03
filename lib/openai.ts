@@ -51,7 +51,7 @@ export async function generateWithOpenAI(options: { system: string; user: string
       instructions: options.system,
       input: options.user,
       reasoning: { effort: reasoningEffort },
-      max_output_tokens: 24000,
+      max_output_tokens: 32000,
     }),
   })
 
