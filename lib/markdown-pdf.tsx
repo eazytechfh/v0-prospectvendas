@@ -118,6 +118,8 @@ export function parseMarkdownToPdfBlocks(markdown: string): PdfBlock[] {
   return blocks
 }
 
+// Leave lineHeight at the font default: layout 4.6.1 reapplies numeric line
+// heights on each page relayout, multiplying them across a continuous document.
 const styles = StyleSheet.create({
   h1: {
     marginBottom: 14,
@@ -152,14 +154,12 @@ const styles = StyleSheet.create({
   p: {
     marginBottom: 8,
     fontSize: 9.5,
-    lineHeight: 1.5,
     color: "#334155",
   },
   li: {
     marginBottom: 5,
     marginLeft: 10,
     fontSize: 9.5,
-    lineHeight: 1.5,
     color: "#334155",
   },
   toc: {
@@ -213,7 +213,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: "#94a3b8",
     fontSize: 8.2,
-    lineHeight: 1.4,
     color: "#334155",
   },
   bold: {
@@ -239,38 +238,47 @@ function Runs({ runs }: { runs: InlineRun[] }) {
   )
 }
 
-const TABLE_ROWS_PER_PAGE = 14
+// Estimates only decide which small blocks may be kept together. React-pdf
+// measures their actual height against the remaining page space before placing
+// them (wrap=false), and minPresenceAhead protects the start of larger blocks.
+// Never make an arbitrarily large AI-generated paragraph/list unbreakable.
+function compactHeight(block: PdfBlock): number {
+  if (block.type === "p" || block.type === "li") {
+    const length = block.runs.reduce((total, run) => total + run.text.length, 0)
+    return (Math.ceil(length / 45) + 1) * 14.25 + 8
+  }
+  if ("text" in block) return (Math.ceil(block.text.length / 35) + 1) * 24 + 34
+  return Infinity
+}
+
+const COMPACT_HEIGHT = 300
 
 function MarkdownTable({ block }: { block: Extract<PdfBlock, { type: "table" }> }) {
-  const chunks: TableCell[][][] = []
-  for (let index = 0; index < block.rows.length; index += TABLE_ROWS_PER_PAGE) {
-    chunks.push(block.rows.slice(index, index + TABLE_ROWS_PER_PAGE))
-  }
-  if (chunks.length === 0) chunks.push([])
-
   return (
-    <>
-      {chunks.map((rows, chunkIndex) => (
-        <View key={chunkIndex} style={styles.table} wrap={false} break={chunkIndex > 0}>
-          <View style={styles.tableRow}>
-            {block.header.map((cell, cellIndex) => (
-              <Text key={cellIndex} style={styles.tableHeaderCell}>
-                <Runs runs={cell.runs} />
-              </Text>
-            ))}
-          </View>
-          {rows.map((row, rowIndex) => (
-            <View key={rowIndex} style={styles.tableRow}>
-              {block.header.map((_, cellIndex) => (
-                <Text key={cellIndex} style={styles.tableCell}>
-                  <Runs runs={row[cellIndex]?.runs ?? [{ text: "", bold: false }]} />
-                </Text>
-              ))}
-            </View>
+    <View style={styles.table}>
+      <View style={styles.tableRow} wrap={false} minPresenceAhead={40}>
+        {block.header.map((cell, cellIndex) => (
+          <Text key={cellIndex} style={styles.tableHeaderCell}>
+            <Runs runs={cell.runs} />
+          </Text>
+        ))}
+      </View>
+      {block.rows.map((row, rowIndex) => (
+        <View
+          key={rowIndex}
+          style={styles.tableRow}
+          wrap={row.some((cell) =>
+            cell.runs.reduce((total, run) => total + run.text.length, 0) > 900 / block.header.length
+          )}
+        >
+          {block.header.map((_, cellIndex) => (
+            <Text key={cellIndex} style={styles.tableCell} orphans={3} widows={3}>
+              <Runs runs={row[cellIndex]?.runs ?? [{ text: "", bold: false }]} />
+            </Text>
           ))}
         </View>
       ))}
-    </>
+    </View>
   )
 }
 
@@ -282,9 +290,9 @@ function TableOfContents({ blocks }: { blocks: PdfBlock[] }) {
 
   return (
     <View style={styles.toc}>
-      <Text style={styles.tocTitle}>Índice</Text>
+      <Text style={styles.tocTitle} minPresenceAhead={30}>Índice</Text>
       {headings.map((heading, index) => (
-        <Text key={index} style={[styles.tocItem, heading.type === "h3" ? styles.tocSubItem : {}]}>
+        <Text key={index} wrap={false} style={[styles.tocItem, heading.type === "h3" ? styles.tocSubItem : {}]}>
           {heading.text}
         </Text>
       ))}
@@ -294,56 +302,91 @@ function TableOfContents({ blocks }: { blocks: PdfBlock[] }) {
 
 export function MarkdownPdfBlocks({ blocks, tocBlocks }: { blocks: PdfBlock[]; tocBlocks?: PdfBlock[] }) {
   const firstTitleIndex = blocks.findIndex((block) => block.type === "h1")
+  const presenceAhead = (index: number) => {
+    const next = blocks[index + 1]
+    const height = next ? compactHeight(next) : 0
+    return height <= COMPACT_HEIGHT ? height : 60
+  }
+  const renderBlock = (block: PdfBlock, index: number) => {
+    switch (block.type) {
+      case "h1":
+        return (
+          <View key={index}>
+            <Text style={styles.h1} minPresenceAhead={50}>{block.text}</Text>
+            {index === firstTitleIndex && <TableOfContents blocks={tocBlocks ?? blocks} />}
+          </View>
+        )
+      case "h2":
+        return (
+          <Text key={index} style={styles.h2} wrap={false} minPresenceAhead={presenceAhead(index)}>
+            {block.text}
+          </Text>
+        )
+      case "h3":
+        return (
+          <Text key={index} style={styles.h3} wrap={false} minPresenceAhead={presenceAhead(index)}>
+            {block.text}
+          </Text>
+        )
+      case "h4":
+        return (
+          <Text key={index} style={styles.h4} wrap={false} minPresenceAhead={presenceAhead(index)}>
+            {block.text}
+          </Text>
+        )
+      case "hr":
+        return <View key={index} style={styles.hr} />
+      case "li":
+        return (
+          <Text key={index} style={styles.li} wrap={compactHeight(block) > COMPACT_HEIGHT} orphans={3} widows={3}
+            minPresenceAhead={blocks[index - 1]?.type !== "li" && blocks[index + 1]?.type === "li" ? 40 : 0}>
+            {`${block.marker}  `}
+            <Runs runs={block.runs} />
+          </Text>
+        )
+      case "table":
+        return <MarkdownTable key={index} block={block} />
+      case "p":
+      default:
+        return (
+          <Text key={index} style={styles.p} wrap={compactHeight(block) > COMPACT_HEIGHT} orphans={3} widows={3}>
+            <Runs runs={block.runs} />
+          </Text>
+        )
+    }
+  }
 
-  return (
-    <>
-      {blocks.map((block, index) => {
-        switch (block.type) {
-          case "h1":
-            return (
-              <View key={index}>
-                <Text style={styles.h1}>{block.text}</Text>
-                {index === firstTitleIndex && <TableOfContents blocks={tocBlocks ?? blocks} />}
-              </View>
-            )
-          case "h2":
-            return (
-              <Text key={index} style={styles.h2} wrap={false}>
-                {block.text}
-              </Text>
-            )
-          case "h3":
-            return (
-              <Text key={index} style={styles.h3} wrap={false}>
-                {block.text}
-              </Text>
-            )
-          case "h4":
-            return (
-              <Text key={index} style={styles.h4} wrap={false}>
-                {block.text}
-              </Text>
-            )
-          case "hr":
-            return <View key={index} style={styles.hr} />
-          case "li":
-            return (
-              <Text key={index} style={styles.li} wrap={false}>
-                {`${block.marker}  `}
-                <Runs runs={block.runs} />
-              </Text>
-            )
-          case "table":
-            return <MarkdownTable key={index} block={block} />
-          case "p":
-          default:
-            return (
-              <Text key={index} style={styles.p}>
-                <Runs runs={block.runs} />
-              </Text>
-            )
-        }
-      })}
-    </>
-  )
+  const groups: { blocks: PdfBlock[]; start: number; height: number }[] = []
+  for (let index = 0; index < blocks.length; index += 1) {
+    const block = blocks[index]
+    const group = { blocks: [block], start: index, height: compactHeight(block) }
+    if (block.type === "li") {
+      // Keep short lists whole; longer lists flow at item boundaries instead of
+      // pushing an entire section onto a fresh page and wasting the current one.
+      let end = index + 1
+      let height = group.height
+      while (blocks[end]?.type === "li" && height <= COMPACT_HEIGHT) height += compactHeight(blocks[end++])
+      if (height <= COMPACT_HEIGHT) {
+        group.height = height
+        group.blocks = blocks.slice(index, end)
+        index = end - 1
+      }
+    }
+    const previous = groups[groups.length - 1]
+    const previousEndsWithHeading = previous && /^(h2|h3|h4)$/.test(previous.blocks[previous.blocks.length - 1].type)
+    if (previousEndsWithHeading && previous.height + group.height <= 420) {
+      previous.blocks.push(...group.blocks)
+      previous.height += group.height
+    } else {
+      groups.push(group)
+    }
+  }
+
+  return <>{groups.map((group) => group.blocks.length > 1 ? (
+    <View key={group.start} wrap={false}
+      minPresenceAhead={/^(h2|h3|h4)$/.test(group.blocks[group.blocks.length - 1].type)
+        ? presenceAhead(group.start + group.blocks.length - 1) : 0}>
+      {group.blocks.map((block, offset) => renderBlock(block, group.start + offset))}
+    </View>
+  ) : renderBlock(group.blocks[0], group.start))}</>
 }
