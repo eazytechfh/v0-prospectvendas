@@ -30,6 +30,13 @@ function extractOutputText(payload: ResponsesApiPayload) {
   return parts.join("\n\n").trim()
 }
 
+export function assertOpenAIResponseComplete(input: { status?: string; text: string }) {
+  if (input.status === "incomplete") {
+    throw new Error("A OpenAI retornou uma resposta incompleta. Uma nova tentativa é necessária.")
+  }
+  if (!input.text) throw new Error("A OpenAI não retornou conteúdo.")
+}
+
 export async function generateWithOpenAI(options: { system: string; user: string }) {
   const apiKey = process.env.OPENAI_API_KEY
 
@@ -62,11 +69,7 @@ export async function generateWithOpenAI(options: { system: string; user: string
   }
 
   const text = extractOutputText(payload)
-
-  if (!text) {
-    const reason = payload.status === "incomplete" ? " (resposta incompleta, aumente max_output_tokens)" : ""
-    throw new Error(`A OpenAI não retornou conteúdo${reason}.`)
-  }
+  assertOpenAIResponseComplete({ status: payload.status, text })
 
   return text
 }

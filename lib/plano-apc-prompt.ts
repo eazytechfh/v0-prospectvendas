@@ -39,6 +39,7 @@ REGRAS INEGOCIÁVEIS:
 - Nunca inclua instruções, meta-comentários ou notas sobre como o relatório foi gerado. Entregue apenas o relatório final.
 - Você tem espaço de sobra — não economize palavras. Desdobre cada resposta do briefing em análise, não apenas a resuma.
 - Cumpra todos os mínimos de volume indicados abaixo. Antes de concluir, faça uma contagem silenciosa das palavras e expanda qualquer subseção ou campo que ainda não atinja o mínimo exigido, sem mencionar essa revisão na saída. Nunca entregue uma seção abaixo do mínimo.
+- O relatório completo deve ter no mínimo 35.000 caracteres úteis. Não use repetições artificiais para atingir esse volume; aprofunde análises, conexões causais, impactos e orientações práticas.
 
 FORMATO DE SAÍDA — Markdown puro, seguindo EXATAMENTE esta estrutura de títulos (não pule nenhuma seção, não adicione seções extras):
 
@@ -142,7 +143,7 @@ export function buildPlanoApcPrompt(submission: FormSubmission) {
 
 ${briefing}`
 
-  const depthChecklist = `Antes de entregar, valide silenciosamente: cada análise de 3.1 a 3.6 e 4.1 a 4.6 contém exatamente 3 parágrafos, cada parágrafo foi desenvolvido com pelo menos 80 palavras e o conjunto mira pelo menos 240 palavras próprias, jamais ficando abaixo do mínimo absoluto de 120 palavras (excluindo título e linha de impacto); cada Descrição Detalhada tem 4-6 bullets de pelo menos 25 palavras; e Impacto Esperado, Recursos Necessários e Indicadores de Sucesso têm pelo menos 3 bullets cada. Expanda o texto até todos os mínimos serem cumpridos.`
+  const depthChecklist = `Antes de entregar, valide silenciosamente: o relatório possui no mínimo 35.000 caracteres úteis; cada análise de 3.1 a 3.6 e 4.1 a 4.6 contém exatamente 3 parágrafos, cada parágrafo foi desenvolvido com pelo menos 80 palavras e o conjunto mira pelo menos 240 palavras próprias, jamais ficando abaixo do mínimo absoluto de 120 palavras (excluindo título e linha de impacto); cada Descrição Detalhada tem 4-6 bullets de pelo menos 25 palavras; e Impacto Esperado, Recursos Necessários e Indicadores de Sucesso têm pelo menos 3 bullets cada. Expanda o texto até todos os mínimos serem cumpridos, sem usar repetições artificiais.`
 
   return { system: buildSystemPrompt(segment), user: `${userPrompt}\n\n${depthChecklist}`, companyName }
 }

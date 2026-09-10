@@ -560,8 +560,13 @@ function SubmissionDetail({
           </div>
 
           <div className="flex items-center justify-between gap-4 text-xs text-slate-400">
-            <span>As alterações serão salvas antes de gerar o PDF.</span>
-            <span>{planoDraft.length.toLocaleString("pt-BR")} / 100.000 caracteres</span>
+            <span>O mínimo de 35.000 vale para a geração automática; edições manuais podem ser menores.</span>
+            <span className={cn(
+              "font-medium",
+              planoDraft.length >= 35_000 ? "text-emerald-400" : "text-amber-400",
+            )}>
+              {planoDraft.length.toLocaleString("pt-BR")} / 100.000 caracteres
+            </span>
           </div>
 
           {planoEditError && <p role="alert" className="text-sm text-red-400">{planoEditError}</p>}
