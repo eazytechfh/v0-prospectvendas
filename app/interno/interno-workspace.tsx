@@ -7,8 +7,10 @@ import {
   Bell,
   Building2,
   CalendarDays,
+  CloudUpload,
   ClipboardList,
   Download,
+  ExternalLink,
   FileText,
   Loader2,
   Pencil,
@@ -133,6 +135,9 @@ function SubmissionDetail({
   const [isLoadingPlanoPreview, setIsLoadingPlanoPreview] = useState(false)
   const [planoPreviewError, setPlanoPreviewError] = useState("")
   const planoPreviewUrlRef = useRef<string | null>(null)
+  const [driveSavingType, setDriveSavingType] = useState<"briefing" | "plano" | null>(null)
+  const [driveError, setDriveError] = useState("")
+  const [driveLinks, setDriveLinks] = useState<{ briefing?: string; plano?: string }>({})
 
   useEffect(() => {
     setPlanoError("")
@@ -142,6 +147,12 @@ function SubmissionDetail({
     setPlanoDraft("")
     setIsSavingPlano(false)
     setPlanoEditError("")
+    setDriveSavingType(null)
+    setDriveError("")
+    setDriveLinks({
+      briefing: submission?.drive_briefing_url || undefined,
+      plano: submission?.drive_plano_url || undefined,
+    })
   }, [submission?.id])
 
   useEffect(() => {
@@ -276,6 +287,30 @@ function SubmissionDetail({
     }
   }
 
+  const saveDocumentToDrive = async (documentType: "briefing" | "plano") => {
+    if (!submission || driveSavingType) return
+    setDriveSavingType(documentType)
+    setDriveError("")
+
+    try {
+      const response = await fetch(`/api/google-drive/${submission.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ documentType }),
+      })
+      const data = (await response.json().catch(() => ({}))) as { error?: string; webViewLink?: string }
+      if (!response.ok || !data.webViewLink) {
+        throw new Error(data.error || "Não foi possível salvar o documento no Google Drive.")
+      }
+      setDriveLinks((current) => ({ ...current, [documentType]: data.webViewLink }))
+    } catch (error) {
+      console.error("Falha ao salvar documento no Drive:", error)
+      setDriveError(error instanceof Error ? error.message : "Não foi possível salvar o documento no Google Drive.")
+    } finally {
+      setDriveSavingType(null)
+    }
+  }
+
   const closeDeleteConfirmation = () => {
     if (isDeleting) return
     setShowDeleteConfirmation(false)
@@ -303,7 +338,7 @@ function SubmissionDetail({
   return (
     <>
       <Dialog open={Boolean(submission)} onOpenChange={(open) => !open && onClose()}>
-        <DialogContent className="max-h-[92vh] max-w-4xl overflow-hidden border-slate-700 bg-slate-900 p-0 text-slate-100">
+        <DialogContent className="max-h-[92vh] w-[94vw] max-w-none overflow-hidden border-slate-700 bg-slate-900 p-0 text-slate-100 sm:max-w-6xl">
           {submission && (
             <>
             <DialogHeader className="border-b border-slate-800 px-6 py-5 pr-14">
@@ -326,6 +361,18 @@ function SubmissionDetail({
                     </a>
                   </Button>
                   {(submission.form_type === "apc_servicos" || submission.form_type === "apc_contabilidade") && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => void saveDocumentToDrive("briefing")}
+                      disabled={Boolean(driveSavingType)}
+                      className="gap-2 border-blue-400/60 bg-blue-500/10 text-blue-200 hover:bg-blue-500/20 hover:text-white"
+                    >
+                      {driveSavingType === "briefing" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CloudUpload className="h-4 w-4" />}
+                      Salvar briefing no Drive
+                    </Button>
+                  )}
+                  {(submission.form_type === "apc_servicos" || submission.form_type === "apc_contabilidade") && (
                     submission.plano_apc_markdown ? (
                       <>
                         <Button asChild className="gap-2 bg-emerald-500 text-slate-950 hover:bg-emerald-400">
@@ -333,6 +380,16 @@ function SubmissionDetail({
                             <Sparkles className="h-4 w-4" />
                             Baixar PDF do Plano
                           </a>
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => void saveDocumentToDrive("plano")}
+                          disabled={Boolean(driveSavingType)}
+                          className="gap-2 border-blue-400/60 bg-blue-500/10 text-blue-200 hover:bg-blue-500/20 hover:text-white"
+                        >
+                          {driveSavingType === "plano" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CloudUpload className="h-4 w-4" />}
+                          Salvar plano no Drive
                         </Button>
                         <Button
                           type="button"
@@ -400,6 +457,21 @@ function SubmissionDetail({
                   {planoError}
                 </p>
               )}
+              {driveError && <p role="alert" className="mt-3 text-sm text-red-400">{driveError}</p>}
+              {(driveLinks.briefing || driveLinks.plano) && (
+                <div className="mt-3 flex flex-wrap gap-3 text-sm">
+                  {driveLinks.briefing && (
+                    <a href={driveLinks.briefing} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-blue-300 underline-offset-4 hover:underline">
+                      <ExternalLink className="h-3.5 w-3.5" /> Abrir briefing no Drive
+                    </a>
+                  )}
+                  {driveLinks.plano && (
+                    <a href={driveLinks.plano} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-blue-300 underline-offset-4 hover:underline">
+                      <ExternalLink className="h-3.5 w-3.5" /> Abrir plano no Drive
+                    </a>
+                  )}
+                </div>
+              )}
             </DialogHeader>
 
             <div className="max-h-[calc(92vh-150px)] overflow-y-auto px-6 py-6">
@@ -435,7 +507,7 @@ function SubmissionDetail({
       </Dialog>
 
       <Dialog open={showPlanoEditor} onOpenChange={(open) => !isSavingPlano && setShowPlanoEditor(open)}>
-        <DialogContent className="flex h-[92vh] w-[96vw] max-w-[1500px] flex-col overflow-hidden border-slate-700 bg-slate-900 text-slate-100">
+        <DialogContent className="flex h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] max-w-none flex-col overflow-hidden border-slate-700 bg-slate-900 text-slate-100 sm:max-w-[calc(100vw-2rem)]">
           <DialogHeader>
             <DialogTitle className="text-white">Editar Plano da IA</DialogTitle>
             <DialogDescription className="leading-6 text-slate-300">
@@ -444,7 +516,7 @@ function SubmissionDetail({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto lg:grid-cols-[minmax(0,1fr)_minmax(420px,0.95fr)] lg:overflow-hidden">
+          <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:overflow-hidden">
             <section className="flex min-h-[58vh] min-w-0 flex-col lg:min-h-0">
               <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-300">Texto do plano</p>
               <Textarea

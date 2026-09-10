@@ -14,6 +14,13 @@ export type FormSubmission = {
   plano_apc_markdown: string | null
   plano_apc_generated_at: string | null
   plano_apc_downloaded_at: string | null
+  drive_folder_id: string | null
+  drive_briefing_file_id: string | null
+  drive_briefing_url: string | null
+  drive_plano_file_id: string | null
+  drive_plano_url: string | null
+  drive_sync_error: string | null
+  drive_synced_at: string | null
 }
 
 type SubmissionInput = {
@@ -167,7 +174,7 @@ export async function findRecentDuplicate(
 }
 
 const submissionSelectColumns =
-  "id,form_type,company_name,answers,read,webhook_delivered,created_at,plano_apc_markdown,plano_apc_generated_at,plano_apc_downloaded_at"
+  "id,form_type,company_name,answers,read,webhook_delivered,created_at,plano_apc_markdown,plano_apc_generated_at,plano_apc_downloaded_at,drive_folder_id,drive_briefing_file_id,drive_briefing_url,drive_plano_file_id,drive_plano_url,drive_sync_error,drive_synced_at"
 
 export async function getFormSubmissions(options?: {
   formType?: FormSubmission["form_type"]
@@ -255,4 +262,38 @@ export async function markPlanoApcDownloaded(submissionId: string) {
     const details = await response.text()
     throw new Error(`Falha ao registrar download do Plano APC: ${response.status} ${details}`)
   }
+}
+
+export async function saveDriveDocument(
+  submissionId: string,
+  documentType: "briefing" | "plano",
+  result: { folderId: string; fileId: string; webViewLink: string },
+) {
+  const { url, anonKey } = getSupabaseConfig()
+  const prefix = documentType === "briefing" ? "drive_briefing" : "drive_plano"
+  const response = await fetch(`${url}/rest/v1/form_submissions?id=eq.${encodeURIComponent(submissionId)}`, {
+    method: "PATCH",
+    headers: supabaseHeaders(anonKey),
+    body: JSON.stringify({
+      drive_folder_id: result.folderId,
+      [`${prefix}_file_id`]: result.fileId,
+      [`${prefix}_url`]: result.webViewLink,
+      drive_sync_error: null,
+      drive_synced_at: new Date().toISOString(),
+    }),
+    cache: "no-store",
+  })
+  if (!response.ok) throw new Error(`Falha ao registrar arquivo do Drive: ${response.status}`)
+}
+
+export async function saveDriveSyncError(submissionId: string, error: unknown) {
+  const { url, anonKey } = getSupabaseConfig()
+  const message = error instanceof Error ? error.message : "Falha desconhecida no Google Drive."
+  const response = await fetch(`${url}/rest/v1/form_submissions?id=eq.${encodeURIComponent(submissionId)}`, {
+    method: "PATCH",
+    headers: supabaseHeaders(anonKey),
+    body: JSON.stringify({ drive_sync_error: message.slice(0, 500) }),
+    cache: "no-store",
+  })
+  if (!response.ok) console.error(`Falha ao registrar erro do Drive: ${response.status}`)
 }

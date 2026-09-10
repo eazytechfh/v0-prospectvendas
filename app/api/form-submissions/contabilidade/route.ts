@@ -6,6 +6,7 @@ import {
   insertFormSubmission,
   markWebhookDelivered,
 } from "@/lib/form-submissions"
+import { syncNewBriefingToDrive } from "@/lib/drive-documents"
 
 const webhookUrl = "https://eazytech-n8n.gsl3ku.easypanel.host/webhook/contabilidade"
 
@@ -65,6 +66,8 @@ export async function POST(request: Request) {
       companyName,
       answers: buildAnswers(payload, fields),
     })
+
+    await syncNewBriefingToDrive(submissionId)
 
     // Dispara o webhook em background — não bloqueia a resposta ao usuário
     fetch(webhookUrl, {
