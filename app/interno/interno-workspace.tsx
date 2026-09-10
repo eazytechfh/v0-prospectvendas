@@ -224,24 +224,14 @@ function SubmissionDetail({
 
     try {
       const response = await fetch(`/api/plano-apc/${submission.id}`, { method: "POST" })
-      const responseText = await response.text()
-      const data = (() => {
-        try {
-          return JSON.parse(responseText) as {
-            error?: string
-            generatedAt?: string
-            markdown?: string
-          }
-        } catch {
-          return {} as { error?: string; generatedAt?: string; markdown?: string }
-        }
-      })()
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string
+        generatedAt?: string
+        markdown?: string
+      }
 
       if (!response.ok) {
-        const timeoutMessage = response.status === 504
-          ? "A geração excedeu o tempo limite do servidor. Tente novamente."
-          : "Não foi possível gerar o Plano APC."
-        throw new Error(data.error || timeoutMessage)
+        throw new Error(data.error || "Não foi possível gerar o Plano APC.")
       }
 
       onPlanoApcGenerated(submission.id, data.generatedAt ?? new Date().toISOString(), data.markdown)

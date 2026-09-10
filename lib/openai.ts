@@ -37,14 +37,6 @@ export function assertOpenAIResponseComplete(input: { status?: string; text: str
   if (!input.text) throw new Error("A OpenAI não retornou conteúdo.")
 }
 
-export function getOpenAIGenerationSettings(env: Record<string, string | undefined>) {
-  return {
-    model: env.OPENAI_MODEL || "o3",
-    reasoningEffort: env.OPENAI_REASONING_EFFORT || "low",
-    maxOutputTokens: 16_000,
-  }
-}
-
 export async function generateWithOpenAI(options: { system: string; user: string }) {
   const apiKey = process.env.OPENAI_API_KEY
 
@@ -52,7 +44,8 @@ export async function generateWithOpenAI(options: { system: string; user: string
     throw new Error("OPENAI_API_KEY não configurada.")
   }
 
-  const { model, reasoningEffort, maxOutputTokens } = getOpenAIGenerationSettings(process.env)
+  const model = process.env.OPENAI_MODEL || "o3"
+  const reasoningEffort = process.env.OPENAI_REASONING_EFFORT || "high"
 
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
@@ -65,7 +58,7 @@ export async function generateWithOpenAI(options: { system: string; user: string
       instructions: options.system,
       input: options.user,
       reasoning: { effort: reasoningEffort },
-      max_output_tokens: maxOutputTokens,
+      max_output_tokens: 32000,
     }),
   })
 

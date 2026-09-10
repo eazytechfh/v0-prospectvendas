@@ -1,5 +1,4 @@
 export const PLANO_APC_GENERATED_MIN_LENGTH = 35_000
-export const PLANO_APC_GENERATION_MAX_ATTEMPTS = 1
 
 export type PlanoApcGenerationValidation = {
   valid: boolean

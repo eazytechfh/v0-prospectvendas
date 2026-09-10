@@ -3,7 +3,7 @@ import { getFormSubmissionById, savePlanoApc } from "@/lib/form-submissions"
 import { generateWithOpenAI } from "@/lib/openai"
 import { buildPlanoApcPrompt } from "@/lib/plano-apc-prompt"
 import { PlanoApcValidationError, validatePlanoApcMarkdown } from "@/lib/plano-apc-edit"
-import { validateGeneratedPlanoApc } from "@/lib/plano-apc-generation-validation"
+import { buildPlanoApcRepairPrompt, validateGeneratedPlanoApc } from "@/lib/plano-apc-generation-validation"
 
 export const runtime = "nodejs"
 export const maxDuration = 300
@@ -28,18 +28,33 @@ export async function POST(
     }
 
     const { system, user } = buildPlanoApcPrompt(submission)
-    const markdown = await generateWithOpenAI({ system, user })
-    const validation = validateGeneratedPlanoApc(markdown)
+    let nextPrompt = user
+    let lastIssues: string[] = []
 
-    if (validation.valid) {
-      const generatedAt = await savePlanoApc(id, markdown)
-      return NextResponse.json({ success: true, generatedAt, markdown, attempts: 1 })
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      let markdown: string
+      try {
+        markdown = await generateWithOpenAI({ system, user: nextPrompt })
+      } catch (error) {
+        const message = error instanceof Error ? error.message : ""
+        if (attempt < 3 && /resposta incompleta/i.test(message)) continue
+        throw error
+      }
+
+      const validation = validateGeneratedPlanoApc(markdown)
+      if (validation.valid) {
+        const generatedAt = await savePlanoApc(id, markdown)
+        return NextResponse.json({ success: true, generatedAt, markdown, attempts: attempt })
+      }
+
+      lastIssues = validation.issues
+      nextPrompt = `${user}\n\n${buildPlanoApcRepairPrompt(markdown, validation.issues)}`
     }
 
     return NextResponse.json(
       {
-        error: `O plano foi gerado, mas não passou na validação: ${validation.issues.join(" ")} O plano anterior foi preservado; tente gerar novamente.`,
-        validationIssues: validation.issues,
+        error: "A IA não conseguiu produzir um plano que atendesse a todas as regras após 3 tentativas. O plano anterior foi preservado.",
+        validationIssues: lastIssues,
       },
       { status: 422 },
     )
