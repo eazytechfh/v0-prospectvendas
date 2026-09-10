@@ -1,4 +1,5 @@
 import { StyleSheet, Text, View } from "@react-pdf/renderer"
+import React from "react"
 
 type InlineRun = { text: string; bold: boolean }
 

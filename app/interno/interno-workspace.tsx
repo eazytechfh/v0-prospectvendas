@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { createBrowserClient } from "@supabase/ssr"
 import {
   ArrowRight,
@@ -129,6 +129,10 @@ function SubmissionDetail({
   const [planoDraft, setPlanoDraft] = useState("")
   const [isSavingPlano, setIsSavingPlano] = useState(false)
   const [planoEditError, setPlanoEditError] = useState("")
+  const [planoPreviewUrl, setPlanoPreviewUrl] = useState("")
+  const [isLoadingPlanoPreview, setIsLoadingPlanoPreview] = useState(false)
+  const [planoPreviewError, setPlanoPreviewError] = useState("")
+  const planoPreviewUrlRef = useRef<string | null>(null)
 
   useEffect(() => {
     setPlanoError("")
@@ -139,6 +143,58 @@ function SubmissionDetail({
     setIsSavingPlano(false)
     setPlanoEditError("")
   }, [submission?.id])
+
+  useEffect(() => {
+    if (!showPlanoEditor || !submission || !planoDraft.trim() || planoDraft.length > 100_000) {
+      if (planoPreviewUrlRef.current) {
+        URL.revokeObjectURL(planoPreviewUrlRef.current)
+        planoPreviewUrlRef.current = null
+      }
+      setPlanoPreviewUrl("")
+      setIsLoadingPlanoPreview(false)
+      return
+    }
+
+    const controller = new AbortController()
+    const timeout = window.setTimeout(async () => {
+      setIsLoadingPlanoPreview(true)
+      setPlanoPreviewError("")
+
+      try {
+        const response = await fetch(`/api/plano-apc/${submission.id}/pdf`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ markdown: planoDraft }),
+          signal: controller.signal,
+        })
+
+        if (!response.ok) {
+          const data = (await response.json().catch(() => ({}))) as { error?: string }
+          throw new Error(data.error || "Não foi possível atualizar a prévia.")
+        }
+
+        const previewUrl = URL.createObjectURL(await response.blob())
+        if (planoPreviewUrlRef.current) URL.revokeObjectURL(planoPreviewUrlRef.current)
+        planoPreviewUrlRef.current = previewUrl
+        setPlanoPreviewUrl(previewUrl)
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return
+        console.error("Falha ao carregar prévia do Plano APC:", error)
+        setPlanoPreviewError(error instanceof Error ? error.message : "Não foi possível atualizar a prévia.")
+      } finally {
+        if (!controller.signal.aborted) setIsLoadingPlanoPreview(false)
+      }
+    }, 700)
+
+    return () => {
+      window.clearTimeout(timeout)
+      controller.abort()
+    }
+  }, [planoDraft, showPlanoEditor, submission])
+
+  useEffect(() => () => {
+    if (planoPreviewUrlRef.current) URL.revokeObjectURL(planoPreviewUrlRef.current)
+  }, [])
 
   const downloadPlanoApc = (submissionId: string) => {
     const link = document.createElement("a")
@@ -379,7 +435,7 @@ function SubmissionDetail({
       </Dialog>
 
       <Dialog open={showPlanoEditor} onOpenChange={(open) => !isSavingPlano && setShowPlanoEditor(open)}>
-        <DialogContent className="flex max-h-[92vh] flex-col border-slate-700 bg-slate-900 text-slate-100 sm:max-w-4xl">
+        <DialogContent className="flex h-[92vh] w-[96vw] max-w-[1500px] flex-col overflow-hidden border-slate-700 bg-slate-900 text-slate-100">
           <DialogHeader>
             <DialogTitle className="text-white">Editar Plano da IA</DialogTitle>
             <DialogDescription className="leading-6 text-slate-300">
@@ -388,13 +444,48 @@ function SubmissionDetail({
             </DialogDescription>
           </DialogHeader>
 
-          <Textarea
-            value={planoDraft}
-            onChange={(event) => setPlanoDraft(event.target.value)}
-            disabled={isSavingPlano}
-            aria-label="Conteúdo do Plano da IA"
-            className="min-h-[52vh] resize-y border-slate-700 bg-slate-950 font-mono text-sm leading-6 text-slate-100"
-          />
+          <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto lg:grid-cols-[minmax(0,1fr)_minmax(420px,0.95fr)] lg:overflow-hidden">
+            <section className="flex min-h-[58vh] min-w-0 flex-col lg:min-h-0">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-300">Texto do plano</p>
+              <Textarea
+                value={planoDraft}
+                onChange={(event) => setPlanoDraft(event.target.value)}
+                disabled={isSavingPlano}
+                aria-label="Conteúdo do Plano da IA"
+                className="min-h-0 flex-1 resize-none border-slate-600 bg-slate-950 font-mono text-sm leading-6 text-white placeholder:text-slate-500 focus-visible:border-cyan-400 focus-visible:ring-cyan-400/30"
+              />
+            </section>
+
+            <section className="flex min-h-[58vh] min-w-0 flex-col lg:min-h-0">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-300">Prévia do PDF</p>
+                {isLoadingPlanoPreview && (
+                  <span className="flex items-center gap-1.5 text-xs text-cyan-300">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Atualizando...
+                  </span>
+                )}
+              </div>
+              <div className="relative min-h-0 flex-1 overflow-hidden rounded-lg border border-slate-600 bg-slate-800">
+                {planoPreviewUrl ? (
+                  <iframe
+                    title="Prévia do PDF do Plano da IA"
+                    src={`${planoPreviewUrl}#toolbar=0&navpanes=0`}
+                    className="h-full min-h-[58vh] w-full bg-white lg:min-h-0"
+                  />
+                ) : (
+                  <div className="flex h-full min-h-[58vh] items-center justify-center px-8 text-center text-sm text-slate-300 lg:min-h-0">
+                    {planoPreviewError || (isLoadingPlanoPreview ? "Gerando a prévia do PDF..." : "A prévia aparecerá aqui.")}
+                  </div>
+                )}
+                {isLoadingPlanoPreview && planoPreviewUrl && (
+                  <div className="absolute inset-x-0 top-0 h-1 overflow-hidden bg-slate-700">
+                    <div className="h-full w-1/2 animate-pulse bg-cyan-400" />
+                  </div>
+                )}
+              </div>
+            </section>
+          </div>
 
           <div className="flex items-center justify-between gap-4 text-xs text-slate-400">
             <span>As alterações serão salvas antes de gerar o PDF.</span>
@@ -404,7 +495,13 @@ function SubmissionDetail({
           {planoEditError && <p role="alert" className="text-sm text-red-400">{planoEditError}</p>}
 
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button type="button" variant="outline" onClick={() => setShowPlanoEditor(false)} disabled={isSavingPlano}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowPlanoEditor(false)}
+              disabled={isSavingPlano}
+              className="border-slate-500 bg-slate-800 text-white hover:bg-slate-700 hover:text-white disabled:bg-slate-800 disabled:text-slate-400"
+            >
               Cancelar
             </Button>
             <Button
@@ -412,6 +509,7 @@ function SubmissionDetail({
               variant="outline"
               onClick={() => void savePlanoApcEdition()}
               disabled={isSavingPlano || !planoDraft.trim() || planoDraft.length > 100_000}
+              className="border-amber-400 bg-amber-500 text-slate-950 hover:bg-amber-400 hover:text-slate-950 disabled:border-slate-600 disabled:bg-slate-800 disabled:text-slate-400"
             >
               {isSavingPlano ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               Salvar alterações
