@@ -11,6 +11,7 @@ import {
   Download,
   FileText,
   Loader2,
+  Pencil,
   RotateCcw,
   Search,
   Sparkles,
@@ -19,6 +20,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { ProspectLogo } from "@/components/prospect-logo"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
@@ -115,7 +117,7 @@ function SubmissionDetail({
   submission: FormSubmission | null
   onClose: () => void
   onDelete: (id: string) => Promise<void>
-  onPlanoApcGenerated: (id: string, generatedAt: string) => void
+  onPlanoApcGenerated: (id: string, generatedAt: string, markdown?: string) => void
 }) {
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -123,11 +125,19 @@ function SubmissionDetail({
   const [isGeneratingPlano, setIsGeneratingPlano] = useState(false)
   const [showRegenerateConfirmation, setShowRegenerateConfirmation] = useState(false)
   const [planoError, setPlanoError] = useState("")
+  const [showPlanoEditor, setShowPlanoEditor] = useState(false)
+  const [planoDraft, setPlanoDraft] = useState("")
+  const [isSavingPlano, setIsSavingPlano] = useState(false)
+  const [planoEditError, setPlanoEditError] = useState("")
 
   useEffect(() => {
     setPlanoError("")
     setIsGeneratingPlano(false)
     setShowRegenerateConfirmation(false)
+    setShowPlanoEditor(false)
+    setPlanoDraft("")
+    setIsSavingPlano(false)
+    setPlanoEditError("")
   }, [submission?.id])
 
   const downloadPlanoApc = (submissionId: string) => {
@@ -147,13 +157,17 @@ function SubmissionDetail({
 
     try {
       const response = await fetch(`/api/plano-apc/${submission.id}`, { method: "POST" })
-      const data = (await response.json().catch(() => ({}))) as { error?: string; generatedAt?: string }
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string
+        generatedAt?: string
+        markdown?: string
+      }
 
       if (!response.ok) {
         throw new Error(data.error || "Não foi possível gerar o Plano APC.")
       }
 
-      onPlanoApcGenerated(submission.id, data.generatedAt ?? new Date().toISOString())
+      onPlanoApcGenerated(submission.id, data.generatedAt ?? new Date().toISOString(), data.markdown)
       if (downloadAfterGeneration) downloadPlanoApc(submission.id)
       setShowRegenerateConfirmation(false)
     } catch (error) {
@@ -161,6 +175,48 @@ function SubmissionDetail({
       setPlanoError(error instanceof Error ? error.message : "Não foi possível gerar o Plano APC.")
     } finally {
       setIsGeneratingPlano(false)
+    }
+  }
+
+  const openPlanoEditor = () => {
+    if (!submission?.plano_apc_markdown) return
+    setPlanoDraft(submission.plano_apc_markdown)
+    setPlanoEditError("")
+    setShowPlanoEditor(true)
+  }
+
+  const savePlanoApcEdition = async (downloadAfterSaving = false) => {
+    if (!submission || isSavingPlano || !planoDraft.trim()) return
+
+    setIsSavingPlano(true)
+    setPlanoEditError("")
+
+    try {
+      const response = await fetch(`/api/plano-apc/${submission.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ markdown: planoDraft }),
+      })
+      const data = (await response.json().catch(() => ({}))) as {
+        error?: string
+        markdown?: string
+        updatedAt?: string
+      }
+
+      if (!response.ok || !data.markdown) {
+        throw new Error(data.error || "Não foi possível salvar as alterações do Plano APC.")
+      }
+
+      onPlanoApcGenerated(submission.id, data.updatedAt ?? new Date().toISOString(), data.markdown)
+      setPlanoDraft(data.markdown)
+      setShowPlanoEditor(false)
+
+      if (downloadAfterSaving) downloadPlanoApc(submission.id)
+    } catch (error) {
+      console.error("Falha ao editar Plano APC:", error)
+      setPlanoEditError(error instanceof Error ? error.message : "Não foi possível salvar as alterações do Plano APC.")
+    } finally {
+      setIsSavingPlano(false)
     }
   }
 
@@ -221,6 +277,15 @@ function SubmissionDetail({
                             <Sparkles className="h-4 w-4" />
                             Baixar PDF do Plano
                           </a>
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={openPlanoEditor}
+                          className="gap-2 border-cyan-500/50 bg-transparent text-cyan-300 hover:bg-cyan-500/10 hover:text-cyan-200"
+                        >
+                          <Pencil className="h-4 w-4" />
+                          Editar Plano
                         </Button>
                         <Button
                           type="button"
@@ -310,6 +375,57 @@ function SubmissionDetail({
             </div>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showPlanoEditor} onOpenChange={(open) => !isSavingPlano && setShowPlanoEditor(open)}>
+        <DialogContent className="flex max-h-[92vh] flex-col border-slate-700 bg-slate-900 text-slate-100 sm:max-w-4xl">
+          <DialogHeader>
+            <DialogTitle className="text-white">Editar Plano da IA</DialogTitle>
+            <DialogDescription className="leading-6 text-slate-300">
+              Edite o conteúdo que será usado no PDF verde de {submission ? companyName(submission) : "esta empresa"}.
+              Títulos Markdown começam com #, ## ou ###.
+            </DialogDescription>
+          </DialogHeader>
+
+          <Textarea
+            value={planoDraft}
+            onChange={(event) => setPlanoDraft(event.target.value)}
+            disabled={isSavingPlano}
+            aria-label="Conteúdo do Plano da IA"
+            className="min-h-[52vh] resize-y border-slate-700 bg-slate-950 font-mono text-sm leading-6 text-slate-100"
+          />
+
+          <div className="flex items-center justify-between gap-4 text-xs text-slate-400">
+            <span>As alterações serão salvas antes de gerar o PDF.</span>
+            <span>{planoDraft.length.toLocaleString("pt-BR")} / 100.000 caracteres</span>
+          </div>
+
+          {planoEditError && <p role="alert" className="text-sm text-red-400">{planoEditError}</p>}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button type="button" variant="outline" onClick={() => setShowPlanoEditor(false)} disabled={isSavingPlano}>
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void savePlanoApcEdition()}
+              disabled={isSavingPlano || !planoDraft.trim() || planoDraft.length > 100_000}
+            >
+              {isSavingPlano ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Salvar alterações
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void savePlanoApcEdition(true)}
+              disabled={isSavingPlano || !planoDraft.trim() || planoDraft.length > 100_000}
+              className="gap-2 bg-emerald-500 text-slate-950 hover:bg-emerald-400"
+            >
+              {isSavingPlano ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              Salvar e baixar PDF
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -581,17 +697,17 @@ export function InternoWorkspace({
     setNotificationQueue(removeSubmission)
   }
 
-  const handlePlanoApcGenerated = (submissionId: string, generatedAt: string) => {
+  const handlePlanoApcGenerated = (submissionId: string, generatedAt: string, markdown?: string) => {
     const markPlanoApcGenerated = (items: FormSubmission[]) => items.map((item) =>
       item.id === submissionId
-        ? { ...item, plano_apc_markdown: item.plano_apc_markdown || "generated", plano_apc_generated_at: generatedAt }
+        ? { ...item, plano_apc_markdown: markdown ?? item.plano_apc_markdown ?? "generated", plano_apc_generated_at: generatedAt }
         : item,
     )
     setServicos(markPlanoApcGenerated)
     setContabilidade(markPlanoApcGenerated)
     setSelectedSubmission((current) =>
       current && current.id === submissionId
-        ? { ...current, plano_apc_markdown: current.plano_apc_markdown || "generated", plano_apc_generated_at: generatedAt }
+        ? { ...current, plano_apc_markdown: markdown ?? current.plano_apc_markdown ?? "generated", plano_apc_generated_at: generatedAt }
         : current,
     )
   }
