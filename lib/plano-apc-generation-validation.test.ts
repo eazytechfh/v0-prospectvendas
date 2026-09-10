@@ -1,6 +1,13 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { validateGeneratedPlanoApc } from "./plano-apc-generation-validation"
+import {
+  PLANO_APC_GENERATION_MAX_ATTEMPTS,
+  validateGeneratedPlanoApc,
+} from "./plano-apc-generation-validation"
+
+test("limita a geração a uma chamada por clique", () => {
+  assert.equal(PLANO_APC_GENERATION_MAX_ATTEMPTS, 1)
+})
 
 function structurallyCompletePlano() {
   const sections = [
