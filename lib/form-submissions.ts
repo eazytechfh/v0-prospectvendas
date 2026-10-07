@@ -33,6 +33,16 @@ type SubmissionRow = {
   id: string
 }
 
+export type ActivityLogInput = {
+  action: string
+  submissionId?: string | null
+  companyName?: string | null
+  formType?: string | null
+  details?: Record<string, unknown>
+  tokensUsed?: number | null
+  error?: string | null
+}
+
 function getSupabaseConfig() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -127,6 +137,36 @@ export async function markWebhookDelivered(submissionId: string) {
   if (!response.ok) {
     const details = await response.text()
     throw new Error(`Falha ao atualizar status do webhook: ${response.status} ${details}`)
+  }
+}
+
+export async function recordActivityLog(input: ActivityLogInput) {
+  try {
+    const { url, anonKey } = getSupabaseConfig()
+    const response = await fetch(`${url}/rest/v1/activity_logs`, {
+      method: "POST",
+      headers: {
+        ...supabaseHeaders(anonKey),
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({
+        action: input.action,
+        submission_id: input.submissionId ?? null,
+        company_name: input.companyName ?? null,
+        form_type: input.formType ?? null,
+        details: input.details ?? null,
+        tokens_used: input.tokensUsed ?? null,
+        error: input.error ?? null,
+      }),
+      cache: "no-store",
+    })
+
+    if (!response.ok) {
+      const details = await response.text()
+      throw new Error(`Falha ao registrar log de atividade: ${response.status} ${details}`)
+    }
+  } catch (error) {
+    console.error("Falha ao registrar log de atividade:", error)
   }
 }
 

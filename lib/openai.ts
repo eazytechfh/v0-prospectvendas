@@ -10,6 +10,7 @@ type ChatCompletionChoice = {
 
 type ChatCompletionPayload = {
   choices?: ChatCompletionChoice[]
+  usage?: { total_tokens?: number }
   error?: { message?: string }
 }
 
@@ -50,5 +51,5 @@ export async function generateWithOpenAI(options: { system: string; user: string
     throw new Error("A OpenAI não retornou conteúdo.")
   }
 
-  return text
+  return { text, tokensUsed: payload.usage?.total_tokens ?? null }
 }

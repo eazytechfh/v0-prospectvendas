@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { createBrowserClient } from "@supabase/ssr"
 import {
   ArrowRight,
+  Activity,
   Bell,
   Building2,
   CalendarDays,
@@ -39,11 +40,24 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import type { FormSubmission } from "@/lib/form-submissions"
 import { cn } from "@/lib/utils"
 
-type Block = "servicos" | "contabilidade" | "diretoria" | "equipe_comercial"
-type FilterableBlock = Block
+type Block = "servicos" | "contabilidade" | "diretoria" | "equipe_comercial" | "logs"
+type FilterableBlock = Exclude<Block, "logs">
 type SubmissionFilters = { company: string; dateFrom: string; dateTo: string }
 const submissionsPerPage = 5
+const activityLogsPerPage = 10
 const emptyFilters: SubmissionFilters = { company: "", dateFrom: "", dateTo: "" }
+
+type ActivityLog = {
+  id: string
+  created_at: string | null
+  action: string
+  submission_id: string | null
+  company_name: string | null
+  form_type: string | null
+  details: Record<string, unknown> | null
+  tokens_used: number | null
+  error: string | null
+}
 
 const formTypeLabels: Record<FormSubmission["form_type"], string> = {
   apc_servicos: "APC Serviços",
@@ -76,6 +90,12 @@ const blocks = [
     title: "Entrevista Equipe Comercial",
     description: "Entrevistas por colaborador",
     icon: Users,
+  },
+  {
+    id: "logs" as const,
+    title: "Logs de Atividade",
+    description: "Histórico de operações",
+    icon: Activity,
   },
 ]
 
@@ -216,14 +236,18 @@ function SubmissionDetail({
     link.remove()
   }
 
-  const generatePlanoApc = async (downloadAfterGeneration = false) => {
+  const generatePlanoApc = async (downloadAfterGeneration = false, regeneration = false) => {
     if (!submission || isGeneratingPlano) return
 
     setIsGeneratingPlano(true)
     setPlanoError("")
 
     try {
-      const response = await fetch(`/api/plano-apc/${submission.id}`, { method: "POST" })
+      const response = await fetch(`/api/plano-apc/${submission.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ regeneration }),
+      })
       const data = (await response.json().catch(() => ({}))) as {
         error?: string
         generatedAt?: string
@@ -612,7 +636,7 @@ function SubmissionDetail({
             <AlertDialogAction
               onClick={(event) => {
                 event.preventDefault()
-                void generatePlanoApc(true)
+                void generatePlanoApc(true, true)
               }}
               disabled={isGeneratingPlano}
               className="bg-amber-500 text-slate-950 hover:bg-amber-400"
@@ -731,6 +755,11 @@ export function InternoWorkspace({
   const [contabilidadePage, setContabilidadePage] = useState(1)
   const [diretoriaPage, setDiretoriaPage] = useState(1)
   const [equipeComercialPage, setEquipeComercialPage] = useState(1)
+  const [activityLogsPage, setActivityLogsPage] = useState(1)
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([])
+  const [activityLogsCount, setActivityLogsCount] = useState(0)
+  const [isLoadingActivityLogs, setIsLoadingActivityLogs] = useState(false)
+  const [activityLogsError, setActivityLogsError] = useState("")
   const [filters, setFilters] = useState<Record<FilterableBlock, SubmissionFilters>>({
     servicos: { ...emptyFilters },
     contabilidade: { ...emptyFilters },
@@ -772,6 +801,36 @@ export function InternoWorkspace({
     const lastPage = Math.max(1, Math.ceil(equipeComercial.length / submissionsPerPage))
     setEquipeComercialPage((current) => Math.min(current, lastPage))
   }, [equipeComercial.length])
+
+  useEffect(() => {
+    if (activeBlock !== "logs") return
+
+    let cancelled = false
+    const loadActivityLogs = async () => {
+      setIsLoadingActivityLogs(true)
+      setActivityLogsError("")
+      const start = (activityLogsPage - 1) * activityLogsPerPage
+      const { data, error, count } = await supabase
+        .from("activity_logs")
+        .select("id,created_at,action,submission_id,company_name,form_type,details,tokens_used,error", { count: "exact" })
+        .order("created_at", { ascending: false })
+        .range(start, start + activityLogsPerPage - 1)
+
+      if (cancelled) return
+      if (error) {
+        setActivityLogsError("Não foi possível carregar os logs de atividade.")
+      } else {
+        setActivityLogs(data as ActivityLog[])
+        setActivityLogsCount(count ?? 0)
+      }
+      setIsLoadingActivityLogs(false)
+    }
+
+    void loadActivityLogs()
+    return () => {
+      cancelled = true
+    }
+  }, [activeBlock, activityLogsPage, supabase])
 
   useEffect(() => {
     const channel = supabase
@@ -885,8 +944,10 @@ export function InternoWorkspace({
   const blockSubmissions = activeBlock === "servicos" ? servicos
       : activeBlock === "contabilidade" ? contabilidade
         : activeBlock === "diretoria" ? diretoria
-          : equipeComercial
-  const activeFilters = filters[activeBlock]
+          : activeBlock === "equipe_comercial" ? equipeComercial
+            : []
+  const filterBlock: FilterableBlock | null = activeBlock === "logs" ? null : activeBlock
+  const activeFilters = filterBlock ? filters[filterBlock] : emptyFilters
   const hasActiveFilters = Boolean(activeFilters.company || activeFilters.dateFrom || activeFilters.dateTo)
   const filteredSubmissions = blockSubmissions.filter((submission) => {
     const companyMatches = companyName(submission)
@@ -936,7 +997,7 @@ export function InternoWorkspace({
   }, [activeBlock, filteredSubmissions.length, setCurrentPage, totalPages])
 
   const activeConfig = blocks.find((block) => block.id === activeBlock) ?? blocks[0]
-  const filterBlock: FilterableBlock = activeBlock
+  const activityLogsTotalPages = Math.max(1, Math.ceil(activityLogsCount / activityLogsPerPage))
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100">
@@ -1023,11 +1084,13 @@ export function InternoWorkspace({
         <section className="min-w-0">
           <div className="mb-6 flex flex-col gap-2 border-b border-slate-800 pb-5 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-sm font-medium text-amber-400">Arquivo de formulários</p>
+              <p className="text-sm font-medium text-amber-400">{activeBlock === "logs" ? "Histórico do sistema" : "Arquivo de formulários"}</p>
               <h1 className="mt-1 text-3xl font-semibold tracking-tight text-white">{activeConfig.title}</h1>
             </div>
             <p className="text-sm text-slate-500">
-              {filteredSubmissions.length} {filteredSubmissions.length === 1 ? "registro" : "registros"}
+              {activeBlock === "logs" ? activityLogsCount : filteredSubmissions.length} {activeBlock === "logs"
+                ? activityLogsCount === 1 ? "registro" : "registros"
+                : filteredSubmissions.length === 1 ? "registro" : "registros"}
             </p>
           </div>
 
@@ -1086,36 +1149,104 @@ export function InternoWorkspace({
             </div>
           )}
 
-          <SubmissionList
-            submissions={visibleSubmissions}
-            onSelect={setSelectedSubmission}
-            emptyMessage={hasActiveFilters ? "Nenhum formulário encontrado com esses filtros." : undefined}
-          />
-
-          {filteredSubmissions.length > 0 && (
-            <div className="mt-5 flex flex-col items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-3 sm:flex-row">
-              <p className="text-sm text-slate-400">Página {currentPage} de {totalPages}</p>
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage((page) => page - 1)}
-                  className="border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 hover:text-white"
-                >
-                  Anterior
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={currentPage === totalPages}
-                  onClick={() => setCurrentPage((page) => page + 1)}
-                  className="border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 hover:text-white"
-                >
-                  Próxima
-                </Button>
+          {activeBlock === "logs" ? (
+            <>
+              <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/70">
+                {isLoadingActivityLogs ? (
+                  <p className="px-5 py-12 text-center text-sm text-slate-400">Carregando logs...</p>
+                ) : activityLogsError ? (
+                  <p role="alert" className="px-5 py-12 text-center text-sm text-red-400">{activityLogsError}</p>
+                ) : activityLogs.length === 0 ? (
+                  <p className="px-5 py-12 text-center text-sm text-slate-400">Nenhuma atividade registrada.</p>
+                ) : (
+                  <table className="w-full min-w-[900px] text-left text-sm">
+                    <thead className="border-b border-slate-800 bg-slate-950/70 text-xs uppercase text-slate-400">
+                      <tr>
+                        <th className="px-4 py-3 font-medium">Data/hora</th>
+                        <th className="px-4 py-3 font-medium">Empresa</th>
+                        <th className="px-4 py-3 font-medium">Formulário</th>
+                        <th className="px-4 py-3 font-medium">Ação</th>
+                        <th className="px-4 py-3 font-medium">Tokens</th>
+                        <th className="px-4 py-3 font-medium">Erro</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800">
+                      {activityLogs.map((log) => (
+                        <tr key={log.id} className="align-top text-slate-300">
+                          <td className="whitespace-nowrap px-4 py-3">{log.created_at ? formatDate(log.created_at) : "—"}</td>
+                          <td className="max-w-48 truncate px-4 py-3" title={log.company_name ?? undefined}>{log.company_name || "—"}</td>
+                          <td className="px-4 py-3">{log.form_type && log.form_type in formTypeLabels
+                            ? formTypeLabels[log.form_type as FormSubmission["form_type"]]
+                            : log.form_type || "—"}</td>
+                          <td className="px-4 py-3">{log.action}</td>
+                          <td className="whitespace-nowrap px-4 py-3">{log.tokens_used?.toLocaleString("pt-BR") ?? "—"}</td>
+                          <td className={cn("max-w-72 whitespace-pre-wrap px-4 py-3", log.error ? "text-red-400" : "text-slate-500")}>{log.error || "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
-            </div>
+              {activityLogsCount > 0 && (
+                <div className="mt-5 flex flex-col items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-3 sm:flex-row">
+                  <p className="text-sm text-slate-400">Página {activityLogsPage} de {activityLogsTotalPages}</p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={activityLogsPage === 1 || isLoadingActivityLogs}
+                      onClick={() => setActivityLogsPage((page) => page - 1)}
+                      className="border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 hover:text-white"
+                    >
+                      Anterior
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={activityLogsPage === activityLogsTotalPages || isLoadingActivityLogs}
+                      onClick={() => setActivityLogsPage((page) => page + 1)}
+                      className="border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 hover:text-white"
+                    >
+                      Próxima
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <SubmissionList
+                submissions={visibleSubmissions}
+                onSelect={setSelectedSubmission}
+                emptyMessage={hasActiveFilters ? "Nenhum formulário encontrado com esses filtros." : undefined}
+              />
+
+              {filteredSubmissions.length > 0 && (
+                <div className="mt-5 flex flex-col items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-3 sm:flex-row">
+                  <p className="text-sm text-slate-400">Página {currentPage} de {totalPages}</p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage((page) => page - 1)}
+                      className="border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 hover:text-white"
+                    >
+                      Anterior
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={currentPage === totalPages}
+                      onClick={() => setCurrentPage((page) => page + 1)}
+                      className="border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 hover:text-white"
+                    >
+                      Próxima
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </section>
       </div>

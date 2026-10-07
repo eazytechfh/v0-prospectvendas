@@ -1,4 +1,4 @@
-import { getFormSubmissionById, saveDriveDocument, saveDriveSyncError } from "@/lib/form-submissions"
+import { getFormSubmissionById, recordActivityLog, saveDriveDocument, saveDriveSyncError, type FormSubmission } from "@/lib/form-submissions"
 import { isGoogleDriveConfigured, type DriveDocumentType, uploadPdfToCompanyDrive } from "@/lib/google-drive"
 import { renderPlanoApcPdf } from "@/lib/plano-apc-pdf"
 import { renderSubmissionPdf } from "@/lib/submission-pdf"
@@ -26,10 +26,29 @@ export async function syncSubmissionDocumentToDrive(submissionId: string, docume
 
 export async function syncNewBriefingToDrive(submissionId: string) {
   if (!isGoogleDriveConfigured()) return
+  let submission: FormSubmission | null = null
+
   try {
+    submission = await getFormSubmissionById(submissionId)
     await syncSubmissionDocumentToDrive(submissionId, "briefing")
+    await recordActivityLog({
+      action: "Google Drive: envio do briefing concluído",
+      submissionId,
+      companyName: submission?.company_name,
+      formType: submission?.form_type,
+      details: { documentType: "briefing", source: "automatic" },
+    })
   } catch (error) {
-    console.error("Falha ao enviar briefing ao Google Drive:", error instanceof Error ? error.message : "Erro desconhecido")
+    const message = error instanceof Error ? error.message : "Erro desconhecido"
+    console.error("Falha ao enviar briefing ao Google Drive:", message)
+    await recordActivityLog({
+      action: "Google Drive: erro no envio do briefing",
+      submissionId,
+      companyName: submission?.company_name,
+      formType: submission?.form_type,
+      details: { documentType: "briefing", source: "automatic" },
+      error: message,
+    })
     await saveDriveSyncError(submissionId, error).catch(() => undefined)
   }
 }

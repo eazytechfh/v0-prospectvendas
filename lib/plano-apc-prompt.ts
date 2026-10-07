@@ -142,7 +142,7 @@ export function buildPlanoApcPrompt(submission: FormSubmission) {
 
 ${briefing}`
 
-  const depthChecklist = `Antes de entregar, valide silenciosamente: cada análise de 3.1 a 3.6 e 4.1 a 4.6 contém exatamente 3 parágrafos, cada parágrafo foi desenvolvido com pelo menos 80 palavras e o conjunto mira pelo menos 240 palavras próprias, jamais ficando abaixo do mínimo absoluto de 120 palavras (excluindo título e linha de impacto); cada Descrição Detalhada tem 4-6 bullets de pelo menos 25 palavras; e Impacto Esperado, Recursos Necessários e Indicadores de Sucesso têm pelo menos 3 bullets cada. Expanda o texto até todos os mínimos serem cumpridos.`
+const depthChecklist = `Antes de entregar, valide silenciosamente os mínimos de volume (120 palavras por subseção de análise, 25 palavras por bullet de Descrição Detalhada, 3 bullets mínimos em Impacto Esperado / Recursos Necessários / Indicadores de Sucesso) e expanda o texto onde necessário. NUNCA escreva contagens de palavras, rótulos como "Parágrafo 1", "Parágrafo 2" ou qualquer meta-comentário sobre o processo de geração no corpo do relatório. O output deve conter apenas o relatório final limpo.`
 
   return { system: buildSystemPrompt(segment), user: `${userPrompt}\n\n${depthChecklist}`, companyName }
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { getFormSubmissionById, savePlanoApc } from "@/lib/form-submissions"
+import { getFormSubmissionById, recordActivityLog, savePlanoApc, type FormSubmission } from "@/lib/form-submissions"
 import { generateWithOpenAI } from "@/lib/openai"
 import { buildPlanoApcPrompt } from "@/lib/plano-apc-prompt"
 import { PlanoApcValidationError, validatePlanoApcMarkdown } from "@/lib/plano-apc-edit"
@@ -8,12 +8,17 @@ export const runtime = "nodejs"
 export const maxDuration = 300
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const { id } = await params
+  let submission: FormSubmission | null = null
+  let isRegeneration = false
+
   try {
-    const { id } = await params
-    const submission = await getFormSubmissionById(id)
+    const body = (await request.json().catch(() => null)) as { regeneration?: unknown } | null
+    isRegeneration = body?.regeneration === true
+    submission = await getFormSubmissionById(id)
 
     if (!submission) {
       return NextResponse.json({ error: "Formulário não encontrado." }, { status: 404 })
@@ -26,15 +31,46 @@ export async function POST(
       )
     }
 
+    if (isRegeneration) {
+      await recordActivityLog({
+        action: "Plano APC: regeneração solicitada",
+        submissionId: submission.id,
+        companyName: submission.company_name,
+        formType: submission.form_type,
+      })
+    }
+    await recordActivityLog({
+      action: "Plano APC: geração iniciada",
+      submissionId: submission.id,
+      companyName: submission.company_name,
+      formType: submission.form_type,
+    })
+
     const { system, user } = buildPlanoApcPrompt(submission)
-    const markdown = await generateWithOpenAI({ system, user })
+    const { text: markdown, tokensUsed } = await generateWithOpenAI({ system, user })
 
     const generatedAt = await savePlanoApc(id, markdown)
+    await recordActivityLog({
+      action: "Plano APC: geração concluída",
+      submissionId: submission.id,
+      companyName: submission.company_name,
+      formType: submission.form_type,
+      tokensUsed,
+    })
 
-    return NextResponse.json({ success: true, generatedAt, markdown })
+    return NextResponse.json({ success: true, generatedAt, markdown, tokensUsed })
   } catch (error) {
     console.error("Falha ao gerar Plano APC:", error)
     const message = error instanceof Error ? error.message : "Erro desconhecido."
+    if (submission) {
+      await recordActivityLog({
+        action: "Plano APC: erro na geração",
+        submissionId: submission.id,
+        companyName: submission.company_name,
+        formType: submission.form_type,
+        error: message,
+      })
+    }
     return NextResponse.json({ error: `Não foi possível gerar o Plano APC. ${message}` }, { status: 500 })
   }
 }
