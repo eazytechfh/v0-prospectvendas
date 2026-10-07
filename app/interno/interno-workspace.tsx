@@ -59,6 +59,31 @@ type ActivityLog = {
   error: string | null
 }
 
+type ActivityLogFilters = {
+  dateFrom: string
+  dateTo: string
+  company: string
+  formType: "" | "apc_servicos" | "apc_contabilidade"
+  onlyErrors: boolean
+}
+
+const emptyActivityLogFilters: ActivityLogFilters = {
+  dateFrom: "",
+  dateTo: "",
+  company: "",
+  formType: "",
+  onlyErrors: false,
+}
+
+function startOfSaoPauloDay(date: string) {
+  return new Date(`${date}T00:00:00-03:00`).toISOString()
+}
+
+function nextDay(date: string) {
+  const [year, month, day] = date.split("-").map(Number)
+  return new Date(Date.UTC(year, month - 1, day + 1)).toISOString().slice(0, 10)
+}
+
 const formTypeLabels: Record<FormSubmission["form_type"], string> = {
   apc_servicos: "APC Serviços",
   apc_contabilidade: "APC Contabilidade",
@@ -760,6 +785,7 @@ export function InternoWorkspace({
   const [activityLogsCount, setActivityLogsCount] = useState(0)
   const [isLoadingActivityLogs, setIsLoadingActivityLogs] = useState(false)
   const [activityLogsError, setActivityLogsError] = useState("")
+  const [activityLogFilters, setActivityLogFilters] = useState<ActivityLogFilters>({ ...emptyActivityLogFilters })
   const [filters, setFilters] = useState<Record<FilterableBlock, SubmissionFilters>>({
     servicos: { ...emptyFilters },
     contabilidade: { ...emptyFilters },
@@ -810,11 +836,28 @@ export function InternoWorkspace({
       setIsLoadingActivityLogs(true)
       setActivityLogsError("")
       const start = (activityLogsPage - 1) * activityLogsPerPage
-      const { data, error, count } = await supabase
+      let query = supabase
         .from("activity_logs")
         .select("id,created_at,action,submission_id,company_name,form_type,details,tokens_used,error", { count: "exact" })
         .order("created_at", { ascending: false })
-        .range(start, start + activityLogsPerPage - 1)
+
+      if (activityLogFilters.dateFrom) {
+        query = query.gte("created_at", startOfSaoPauloDay(activityLogFilters.dateFrom))
+      }
+      if (activityLogFilters.dateTo) {
+        query = query.lt("created_at", startOfSaoPauloDay(nextDay(activityLogFilters.dateTo)))
+      }
+      if (activityLogFilters.company.trim()) {
+        query = query.ilike("company_name", `%${activityLogFilters.company.trim()}%`)
+      }
+      if (activityLogFilters.formType) {
+        query = query.eq("form_type", activityLogFilters.formType)
+      }
+      if (activityLogFilters.onlyErrors) {
+        query = query.not("error", "is", null)
+      }
+
+      const { data, error, count } = await query.range(start, start + activityLogsPerPage - 1)
 
       if (cancelled) return
       if (error) {
@@ -830,7 +873,7 @@ export function InternoWorkspace({
     return () => {
       cancelled = true
     }
-  }, [activeBlock, activityLogsPage, supabase])
+  }, [activeBlock, activityLogFilters, activityLogsPage, supabase])
 
   useEffect(() => {
     const channel = supabase
@@ -998,6 +1041,23 @@ export function InternoWorkspace({
 
   const activeConfig = blocks.find((block) => block.id === activeBlock) ?? blocks[0]
   const activityLogsTotalPages = Math.max(1, Math.ceil(activityLogsCount / activityLogsPerPage))
+  const hasActivityLogFilters = Boolean(
+    activityLogFilters.dateFrom || activityLogFilters.dateTo || activityLogFilters.company.trim()
+    || activityLogFilters.formType || activityLogFilters.onlyErrors,
+  )
+
+  const updateActivityLogFilter = <Key extends keyof ActivityLogFilters>(
+    key: Key,
+    value: ActivityLogFilters[Key],
+  ) => {
+    setActivityLogFilters((current) => ({ ...current, [key]: value }))
+    setActivityLogsPage(1)
+  }
+
+  const clearActivityLogFilters = () => {
+    setActivityLogFilters({ ...emptyActivityLogFilters })
+    setActivityLogsPage(1)
+  }
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100">
@@ -1151,6 +1211,81 @@ export function InternoWorkspace({
 
           {activeBlock === "logs" ? (
             <>
+              <div className="mb-5 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(150px,1fr)_minmax(150px,1fr)_minmax(200px,1.4fr)_minmax(190px,1fr)_auto] xl:items-end">
+                  <div className="space-y-2">
+                    <label htmlFor="activity-log-date-from" className="text-xs font-medium uppercase tracking-wide text-slate-400">Data inicial</label>
+                    <Input
+                      id="activity-log-date-from"
+                      type="date"
+                      value={activityLogFilters.dateFrom}
+                      max={activityLogFilters.dateTo || undefined}
+                      onChange={(event) => updateActivityLogFilter("dateFrom", event.target.value)}
+                      className="border-slate-700 bg-slate-950 text-white [color-scheme:dark]"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="activity-log-date-to" className="text-xs font-medium uppercase tracking-wide text-slate-400">Data final</label>
+                    <Input
+                      id="activity-log-date-to"
+                      type="date"
+                      value={activityLogFilters.dateTo}
+                      min={activityLogFilters.dateFrom || undefined}
+                      onChange={(event) => updateActivityLogFilter("dateTo", event.target.value)}
+                      className="border-slate-700 bg-slate-950 text-white [color-scheme:dark]"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="activity-log-company" className="text-xs font-medium uppercase tracking-wide text-slate-400">Empresa</label>
+                    <div className="relative">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                      <Input
+                        id="activity-log-company"
+                        type="text"
+                        value={activityLogFilters.company}
+                        onChange={(event) => updateActivityLogFilter("company", event.target.value)}
+                        placeholder="Buscar empresa"
+                        className="border-slate-700 bg-slate-950 pl-9 text-white"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="activity-log-form-type" className="text-xs font-medium uppercase tracking-wide text-slate-400">Formulário</label>
+                    <select
+                      id="activity-log-form-type"
+                      value={activityLogFilters.formType}
+                      onChange={(event) => updateActivityLogFilter("formType", event.target.value as ActivityLogFilters["formType"])}
+                      className="h-9 w-full rounded-md border border-slate-700 bg-slate-950 px-3 text-sm text-white outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50"
+                    >
+                      <option value="">Todos</option>
+                      <option value="apc_servicos">APC Serviços</option>
+                      <option value="apc_contabilidade">APC Contabilidade</option>
+                    </select>
+                  </div>
+                  <div className="flex min-h-9 items-center gap-2">
+                    <input
+                      id="activity-log-errors-only"
+                      type="checkbox"
+                      checked={activityLogFilters.onlyErrors}
+                      onChange={(event) => updateActivityLogFilter("onlyErrors", event.target.checked)}
+                      className="h-4 w-4 rounded border-slate-600 bg-slate-950 accent-amber-400"
+                    />
+                    <label htmlFor="activity-log-errors-only" className="text-sm text-slate-300">Apenas erros</label>
+                  </div>
+                  {hasActivityLogFilters && (
+                    <div className="sm:col-span-2 xl:col-span-5">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={clearActivityLogFilters}
+                        className="border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800 hover:text-white"
+                      >
+                        Limpar filtros
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
               <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/70">
                 {isLoadingActivityLogs ? (
                   <p className="px-5 py-12 text-center text-sm text-slate-400">Carregando logs...</p>
