@@ -1,33 +1,16 @@
-type ResponsesApiOutputTextContent = {
-  type: "output_text"
-  text: string
+type ChatCompletionMessage = {
+  role: "assistant" | "user" | "system"
+  content: string
 }
 
-type ResponsesApiMessageItem = {
-  type: "message"
-  content?: ResponsesApiOutputTextContent[]
+type ChatCompletionChoice = {
+  message: ChatCompletionMessage
+  finish_reason: string
 }
 
-type ResponsesApiPayload = {
-  status?: string
+type ChatCompletionPayload = {
+  choices?: ChatCompletionChoice[]
   error?: { message?: string }
-  output?: ResponsesApiMessageItem[]
-}
-
-function extractOutputText(payload: ResponsesApiPayload) {
-  const output = Array.isArray(payload.output) ? payload.output : []
-  const parts: string[] = []
-
-  for (const item of output) {
-    if (item.type !== "message" || !Array.isArray(item.content)) continue
-    for (const content of item.content) {
-      if (content.type === "output_text" && typeof content.text === "string") {
-        parts.push(content.text)
-      }
-    }
-  }
-
-  return parts.join("\n\n").trim()
 }
 
 export async function generateWithOpenAI(options: { system: string; user: string }) {
@@ -37,10 +20,9 @@ export async function generateWithOpenAI(options: { system: string; user: string
     throw new Error("OPENAI_API_KEY não configurada.")
   }
 
-  const model = process.env.OPENAI_MODEL || "o3"
-  const reasoningEffort = process.env.OPENAI_REASONING_EFFORT || "high"
+  const model = process.env.OPENAI_MODEL || "gpt-4.1"
 
-  const response = await fetch("https://api.openai.com/v1/responses", {
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -48,24 +30,24 @@ export async function generateWithOpenAI(options: { system: string; user: string
     },
     body: JSON.stringify({
       model,
-      instructions: options.system,
-      input: options.user,
-      reasoning: { effort: reasoningEffort },
-      max_output_tokens: 32000,
+      messages: [
+        { role: "system", content: options.system },
+        { role: "user", content: options.user },
+      ],
+      max_tokens: 32000,
     }),
   })
 
-  const payload = (await response.json()) as ResponsesApiPayload
+  const payload = (await response.json()) as ChatCompletionPayload
 
   if (!response.ok) {
     throw new Error(`Falha na chamada à OpenAI: ${response.status} ${payload.error?.message ?? ""}`)
   }
 
-  const text = extractOutputText(payload)
+  const text = payload.choices?.[0]?.message?.content?.trim()
 
   if (!text) {
-    const reason = payload.status === "incomplete" ? " (resposta incompleta, aumente max_output_tokens)" : ""
-    throw new Error(`A OpenAI não retornou conteúdo${reason}.`)
+    throw new Error("A OpenAI não retornou conteúdo.")
   }
 
   return text
