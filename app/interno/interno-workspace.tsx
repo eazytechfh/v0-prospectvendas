@@ -723,38 +723,44 @@ function SubmissionList({
 
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/70">
-      {submissions.map((submission) => (
-        <button
-          key={submission.id}
-          type="button"
-          onClick={() => onSelect(submission)}
-          className="group flex w-full items-center gap-4 border-b border-slate-800 px-5 py-4 text-left transition-colors last:border-b-0 hover:bg-slate-800/80"
-        >
-          <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", submission.read ? "bg-slate-600" : "bg-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.5)]")} />
-          <span className="min-w-0 flex-1">
-            <span className="block truncate font-medium text-white group-hover:text-amber-300">{submissionListName(submission)}</span>
-            <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
-              <span>{formatDate(submission.created_at)}</span>
-              <span className={submission.read ? "text-slate-500" : "font-medium text-amber-400"}>
-                {submission.read ? "Lido" : "Não lido"}
+      {submissions.map((submission) => {
+        const planoRealizado = Boolean(
+          submission.plano_apc_generated_at || submission.plano_apc_markdown || submission.plano_apc_downloaded_at,
+        )
+
+        return (
+          <button
+            key={submission.id}
+            type="button"
+            onClick={() => onSelect(submission)}
+            className="group flex w-full items-center gap-4 border-b border-slate-800 px-5 py-4 text-left transition-colors last:border-b-0 hover:bg-slate-800/80"
+          >
+            <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", submission.read ? "bg-slate-600" : "bg-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.5)]")} />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate font-medium text-white group-hover:text-amber-300">{submissionListName(submission)}</span>
+              <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
+                <span>{formatDate(submission.created_at)}</span>
+                <span className={submission.read ? "text-slate-500" : "font-medium text-amber-400"}>
+                  {submission.read ? "Lido" : "Não lido"}
+                </span>
               </span>
             </span>
-          </span>
-          {(submission.form_type === "apc_servicos" || submission.form_type === "apc_contabilidade") && (
-            <span
-              className={cn(
-                "shrink-0 rounded-full border px-3 py-1 text-xs font-semibold",
-                submission.plano_apc_downloaded_at
-                  ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
-                  : "border-slate-700 bg-slate-800/70 text-slate-400",
-              )}
-            >
-              {submission.plano_apc_downloaded_at ? "Plano realizado" : "Plano pendente"}
-            </span>
-          )}
-          <span className="text-xl text-slate-600 transition-transform group-hover:translate-x-1 group-hover:text-amber-400">→</span>
-        </button>
-      ))}
+            {(submission.form_type === "apc_servicos" || submission.form_type === "apc_contabilidade") && (
+              <span
+                className={cn(
+                  "shrink-0 rounded-full border px-3 py-1 text-xs font-semibold",
+                  planoRealizado
+                    ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300"
+                    : "border-slate-700 bg-slate-800/70 text-slate-400",
+                )}
+              >
+                {planoRealizado ? "Plano realizado" : "Plano pendente"}
+              </span>
+            )}
+            <span className="text-xl text-slate-600 transition-transform group-hover:translate-x-1 group-hover:text-amber-400">→</span>
+          </button>
+        )
+      })}
     </div>
   )
 }
